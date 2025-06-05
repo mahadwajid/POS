@@ -55,4 +55,7 @@ const expenseSchema = new mongoose.Schema({
 // Index for faster searches
 expenseSchema.index({ date: -1, category: 1 });
 
-export default mongoose.model('Expense', expenseSchema); 
+// Prevent OverwriteModelError
+const Expense = mongoose.models.Expense || mongoose.model('Expense', expenseSchema);
+
+export default Expense; 

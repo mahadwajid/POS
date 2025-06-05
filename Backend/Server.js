@@ -17,8 +17,13 @@ dotenv.config();
 
 const app = express();
 
+// CORS configuration
+app.use(cors({
+  origin: 'http://localhost:3000',
+  credentials: true
+}));
+
 // Middleware
-app.use(cors());
 app.use(express.json());
 
 // Initialize server

@@ -91,4 +91,7 @@ const billSchema = new mongoose.Schema({
 // Index for faster searches
 billSchema.index({ billNumber: 1, createdAt: -1 });
 
-export default mongoose.model('Bill', billSchema); 
+// Prevent OverwriteModelError
+const Bill = mongoose.models.Bill || mongoose.model('Bill', billSchema);
+
+export default Bill; 

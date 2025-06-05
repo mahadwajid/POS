@@ -1,6 +1,6 @@
-import Bill from '../models/Bill.js';
-import Product from '../models/Product.js';
-import Expense from '../models/Expense.js';
+import { Product } from '../Models/index.js';
+import { Bill } from '../Models/index.js';
+import { Expense } from '../Models/index.js';
 
 // @desc    Get sales report
 // @route   GET /api/reports/sales

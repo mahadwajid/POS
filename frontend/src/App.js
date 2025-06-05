@@ -11,6 +11,7 @@ import Billing from './Pages/Billing';
 import Expenses from './Pages/Expenses';
 import Reports from './Pages/Reports';
 import Users from './Pages/Users';
+import Ledger from './Pages/Ledger';
 
 // Create theme
 const theme = createTheme({
@@ -42,7 +43,7 @@ const ProtectedRoute = ({ children }) => {
 const App = () => {
   return (
     <ThemeProvider theme={theme}>
-    
+     
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route
@@ -70,7 +71,7 @@ const App = () => {
               }
             />
             <Route
-              path="/billing"
+              path="/billing/:customerId?"
               element={
                 <ProtectedRoute>
                   <Billing />
@@ -101,9 +102,17 @@ const App = () => {
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/ledger/:customerId?"
+              element={
+                <ProtectedRoute>
+                  <Ledger />
+                </ProtectedRoute>
+              }
+            />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
           </Routes>
-      
+       
     </ThemeProvider>
   );
 };

@@ -1,12 +1,13 @@
-import Customer from '../models/Customer.js';
-import Bill from '../models/Bill.js';
+import { Customer } from '../Models/index.js';
+import Bill from '../Models/Bill.js';
+import Payment from '../Models/Payment.js';
 
 // @desc    Get all customers
 // @route   GET /api/customers
 // @access  Private
 export const getCustomers = async (req, res) => {
   try {
-    const { search } = req.query;
+    const { search, hasDue } = req.query;
     const query = { isActive: true };
 
     if (search) {
@@ -15,6 +16,10 @@ export const getCustomers = async (req, res) => {
         { phone: { $regex: search, $options: 'i' } },
         { email: { $regex: search, $options: 'i' } }
       ];
+    }
+
+    if (hasDue === 'true') {
+      query.totalDue = { $gt: 0 };
     }
 
     const customers = await Customer.find(query).sort({ name: 1 });
@@ -41,15 +46,22 @@ export const getCustomerById = async (req, res) => {
 
 // @desc    Create new customer
 // @route   POST /api/customers
-// @access  Private
+// @access  Private/Admin
 export const createCustomer = async (req, res) => {
   try {
-    const { name, phone, email, address, creditLimit, notes } = req.body;
+    const {
+      name,
+      phone,
+      email,
+      address,
+      creditLimit,
+      notes
+    } = req.body;
 
     // Check if phone number exists
     const phoneExists = await Customer.findOne({ phone });
     if (phoneExists) {
-      return res.status(400).json({ message: 'Phone number already exists' });
+      return res.status(400).json({ message: 'Phone number already registered' });
     }
 
     const customer = await Customer.create({
@@ -69,12 +81,18 @@ export const createCustomer = async (req, res) => {
 
 // @desc    Update customer
 // @route   PUT /api/customers/:id
-// @access  Private
+// @access  Private/Admin
 export const updateCustomer = async (req, res) => {
   try {
-    const { name, phone, email, address, creditLimit, notes, isActive } = req.body;
+    const {
+      name,
+      phone,
+      email,
+      address,
+      creditLimit,
+      notes
+    } = req.body;
 
-    // Check if customer exists
     const customer = await Customer.findById(req.params.id);
     if (!customer) {
       return res.status(404).json({ message: 'Customer not found' });
@@ -84,19 +102,17 @@ export const updateCustomer = async (req, res) => {
     if (phone !== customer.phone) {
       const phoneExists = await Customer.findOne({ phone });
       if (phoneExists) {
-        return res.status(400).json({ message: 'Phone number already exists' });
+        return res.status(400).json({ message: 'Phone number already registered' });
       }
     }
 
-    // Update customer
     Object.assign(customer, {
       name,
       phone,
       email,
       address,
       creditLimit,
-      notes,
-      isActive
+      notes
     });
 
     await customer.save();
@@ -108,7 +124,7 @@ export const updateCustomer = async (req, res) => {
 
 // @desc    Delete customer
 // @route   DELETE /api/customers/:id
-// @access  Private
+// @access  Private/Admin
 export const deleteCustomer = async (req, res) => {
   try {
     const customer = await Customer.findById(req.params.id);
@@ -116,19 +132,142 @@ export const deleteCustomer = async (req, res) => {
       return res.status(404).json({ message: 'Customer not found' });
     }
 
-    // Check if customer has any bills
-    const hasBills = await Bill.exists({ customer: req.params.id });
-    if (hasBills) {
-      return res.status(400).json({ message: 'Cannot delete customer with existing bills' });
+    // Check for pending bills
+    const pendingBills = await Bill.find({
+      customer: customer._id,
+      status: { $in: ['pending', 'partial'] }
+    });
+
+    if (pendingBills.length > 0) {
+      return res.status(400).json({ 
+        message: 'Cannot delete customer with pending bills',
+        pendingBills: pendingBills.map(bill => ({
+          billNumber: bill.billNumber,
+          amount: bill.total,
+          dueAmount: bill.dueAmount,
+          status: bill.status
+        }))
+      });
     }
 
-    // Soft delete
+    // Check if customer has any dues
+    if (customer.totalDue > 0) {
+      return res.status(400).json({ 
+        message: 'Cannot delete customer with pending dues',
+        totalDue: customer.totalDue
+      });
+    }
+
+    // Soft delete - mark as inactive
     customer.isActive = false;
     await customer.save();
 
-    res.json({ message: 'Customer deleted' });
+    res.json({ 
+      message: 'Customer deleted successfully',
+      customer: {
+        id: customer._id,
+        name: customer.name,
+        phone: customer.phone
+      }
+    });
+  } catch (error) {
+    console.error('Customer deletion error:', error);
+    res.status(500).json({ 
+      message: 'Server error',
+      details: error.message
+    });
+  }
+};
+
+// @desc    Get customer ledger
+// @route   GET /api/customers/:id/ledger
+// @access  Private
+export const getCustomerLedger = async (req, res) => {
+  try {
+    const customer = await Customer.findById(req.params.id);
+    if (!customer) {
+      return res.status(404).json({ message: 'Customer not found' });
+    }
+
+    // Get all bills and payments for the customer
+    const bills = await Bill.find({ customer: req.params.id })
+      .sort({ createdAt: -1 });
+    const payments = await Payment.find({ customer: req.params.id })
+      .sort({ createdAt: -1 });
+
+    // Combine and sort transactions
+    const transactions = [
+      ...bills.map(bill => ({
+        type: 'purchase',
+        date: bill.createdAt,
+        reference: bill.billNumber,
+        description: 'Purchase',
+        amount: bill.totalAmount,
+        balance: bill.remainingDue
+      })),
+      ...payments.map(payment => ({
+        type: 'payment',
+        date: payment.createdAt,
+        reference: payment.paymentNumber,
+        description: 'Payment',
+        amount: payment.amount,
+        balance: payment.balanceAfter
+      }))
+    ].sort((a, b) => b.date - a.date);
+
+    res.json({
+      customer,
+      transactions
+    });
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// @desc    Record customer payment
+// @route   POST /api/customers/:id/payment
+// @access  Private/Admin
+export const recordPayment = async (req, res) => {
+  try {
+    const { amount, paymentMethod, notes, recordedBy } = req.body;
+    const customer = await Customer.findById(req.params.id);
+
+    if (!customer) {
+      return res.status(404).json({ message: 'Customer not found' });
+    }
+
+    if (amount > customer.totalDue) {
+      return res.status(400).json({ 
+        message: 'Payment amount cannot exceed total due' 
+      });
+    }
+
+    // Create new payment instance
+    const payment = new Payment({
+      customer: customer._id,
+      amount,
+      paymentMethod,
+      notes,
+      balanceAfter: customer.totalDue - amount,
+      recordedBy
+    });
+
+    // Save payment and wait for pre-save hook to complete
+    await payment.save();
+
+    // Update customer's financial data
+    await customer.updateFinancials(amount, 'payment');
+
+    res.status(201).json({
+      payment,
+      customer: await Customer.findById(customer._id)
+    });
+  } catch (error) {
+    console.error('Payment recording error:', error);
+    res.status(500).json({ 
+      message: error.message || 'Server error',
+      details: error.errors || {}
+    });
   }
 };
 

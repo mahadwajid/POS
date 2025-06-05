@@ -1,22 +1,41 @@
-import Product from '../models/Product.js';
+import { Product } from '../Models/index.js';
 
 // @desc    Get all products
 // @route   GET /api/products
 // @access  Private
 export const getProducts = async (req, res) => {
   try {
-    const { search, category, sort } = req.query;
+    const { search, category, sort, stockStatus, supplier } = req.query;
     const query = { isActive: true };
 
     if (search) {
       query.$or = [
         { name: { $regex: search, $options: 'i' } },
-        { sku: { $regex: search, $options: 'i' } }
+        { sku: { $regex: search, $options: 'i' } },
+        { 'supplier.name': { $regex: search, $options: 'i' } }
       ];
     }
 
     if (category) {
       query.category = category;
+    }
+
+    if (supplier) {
+      query['supplier.name'] = { $regex: supplier, $options: 'i' };
+    }
+
+    if (stockStatus) {
+      switch (stockStatus) {
+        case 'low':
+          query.$expr = { $lte: ['$quantity', '$lowStockAlert'] };
+          break;
+        case 'out':
+          query.quantity = 0;
+          break;
+        case 'in':
+          query.$expr = { $gt: ['$quantity', '$lowStockAlert'] };
+          break;
+      }
     }
 
     let sortOption = { createdAt: -1 };
@@ -63,7 +82,9 @@ export const createProduct = async (req, res) => {
       brand,
       model,
       warranty,
-      description
+      description,
+      unitType,
+      supplier
     } = req.body;
 
     // Check if SKU exists
@@ -83,7 +104,11 @@ export const createProduct = async (req, res) => {
       brand,
       model,
       warranty,
-      description
+      description,
+      unitType,
+      supplier,
+      status: quantity <= 0 ? 'Out of Stock' : 
+              quantity <= lowStockAlert ? 'Low Stock' : 'In Stock'
     });
 
     res.status(201).json(product);
@@ -109,7 +134,9 @@ export const updateProduct = async (req, res) => {
       model,
       warranty,
       description,
-      isActive
+      isActive,
+      unitType,
+      supplier
     } = req.body;
 
     // Check if product exists
@@ -139,7 +166,11 @@ export const updateProduct = async (req, res) => {
       model,
       warranty,
       description,
-      isActive
+      isActive,
+      unitType,
+      supplier,
+      status: quantity <= 0 ? 'Out of Stock' : 
+              quantity <= lowStockAlert ? 'Low Stock' : 'In Stock'
     });
 
     await product.save();
@@ -164,6 +195,43 @@ export const deleteProduct = async (req, res) => {
     await product.save();
 
     res.json({ message: 'Product deleted' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// @desc    Export products to CSV
+// @route   GET /api/products/export
+// @access  Private/Admin
+export const exportProducts = async (req, res) => {
+  try {
+    const products = await Product.find({ isActive: true });
+    
+    // Convert products to CSV format
+    const csvData = products.map(product => ({
+      Name: product.name,
+      SKU: product.sku,
+      Category: product.category,
+      Price: product.price,
+      Cost: product.costPrice,
+      Quantity: product.quantity,
+      Unit: product.unitType,
+      Status: product.status,
+      Supplier: product.supplier?.name || '',
+      Brand: product.brand || '',
+      Model: product.model || ''
+    }));
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=products.csv');
+    
+    // Convert to CSV string
+    const csvString = [
+      Object.keys(csvData[0]).join(','),
+      ...csvData.map(row => Object.values(row).join(','))
+    ].join('\n');
+
+    res.send(csvString);
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
   }

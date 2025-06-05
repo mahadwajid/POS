@@ -1,6 +1,6 @@
 import express from 'express';
+import { Product } from '../Models/index.js';
 import Bill from '../Models/Bill.js';
-import Product from '../Models/Product.js';
 import Customer from '../Models/Customer.js';
 import { auth } from '../Middlewares/auth.js';
 

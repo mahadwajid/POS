@@ -30,6 +30,22 @@ const productSchema = new mongoose.Schema({
     required: true,
     min: 0
   },
+  unitType: {
+    type: String,
+    required: true,
+    enum: ['piece', 'meter', 'box', 'set', 'kg'],
+    default: 'piece'
+  },
+  supplier: {
+    name: {
+      type: String,
+      trim: true
+    },
+    contact: {
+      type: String,
+      trim: true
+    }
+  },
   sku: {
     type: String,
     required: true,
@@ -54,12 +70,27 @@ const productSchema = new mongoose.Schema({
   lowStockAlert: {
     type: Number,
     default: 5
+  },
+  status: {
+    type: String,
+    enum: ['In Stock', 'Low Stock', 'Out of Stock'],
+    default: 'In Stock'
   }
 }, {
   timestamps: true
 });
 
-// Index for faster searches
-productSchema.index({ name: 'text', sku: 'text', brand: 'text' });
+// Virtual for stock status
+productSchema.virtual('stockStatus').get(function() {
+  if (this.quantity <= 0) return 'Out of Stock';
+  if (this.quantity <= this.lowStockAlert) return 'Low Stock';
+  return 'In Stock';
+});
 
-export default mongoose.model('Product', productSchema); 
+// Index for faster searches
+productSchema.index({ name: 'text', sku: 'text', brand: 'text', category: 'text' });
+
+// Prevent OverwriteModelError
+const Product = mongoose.models.Product || mongoose.model('Product', productSchema);
+
+export default Product; 
