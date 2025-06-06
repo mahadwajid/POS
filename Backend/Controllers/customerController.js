@@ -158,12 +158,18 @@ export const deleteCustomer = async (req, res) => {
       });
     }
 
-    // Soft delete - mark as inactive
-    customer.isActive = false;
-    await customer.save();
+    // Delete all related records
+    await Promise.all([
+      // Delete all bills
+      Bill.deleteMany({ customer: customer._id }),
+      // Delete all payments
+      Payment.deleteMany({ customer: customer._id }),
+      // Delete the customer
+      Customer.findByIdAndDelete(customer._id)
+    ]);
 
     res.json({ 
-      message: 'Customer deleted successfully',
+      message: 'Customer and all related records deleted successfully',
       customer: {
         id: customer._id,
         name: customer.name,

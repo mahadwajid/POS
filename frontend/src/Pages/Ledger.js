@@ -117,7 +117,8 @@ const Ledger = () => {
       await api.post(`/customers/${selectedCustomer._id}/payment`, {
         amount: parseFloat(paymentAmount),
         paymentMethod,
-        notes: paymentNotes
+        notes: paymentNotes,
+        recordedBy: user._id
       });
       setPaymentDialogOpen(false);
       setPaymentAmount('');

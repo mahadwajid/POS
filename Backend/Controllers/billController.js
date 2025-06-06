@@ -337,4 +337,55 @@ export const getCategorySalesSummary = async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
   }
+};
+
+// @desc    Delete bill
+// @route   DELETE /api/bills/:id
+// @access  Private/Admin
+export const deleteBill = async (req, res) => {
+  try {
+    const bill = await Bill.findById(req.params.id);
+    if (!bill) {
+      return res.status(404).json({ message: 'Bill not found' });
+    }
+
+    // Check if bill is already paid
+    if (bill.status === 'paid') {
+      return res.status(400).json({ 
+        message: 'Cannot delete a paid bill'
+      });
+    }
+
+    // Restore product quantities
+    for (const item of bill.items) {
+      await Product.findByIdAndUpdate(item.product, {
+        $inc: { quantity: item.quantity }
+      });
+    }
+
+    // Update customer's total due
+    if (bill.dueAmount > 0) {
+      await Customer.findByIdAndUpdate(bill.customer, {
+        $inc: { totalDue: -bill.dueAmount }
+      });
+    }
+
+    // Delete the bill
+    await Bill.findByIdAndDelete(bill._id);
+
+    res.json({ 
+      message: 'Bill deleted successfully',
+      bill: {
+        id: bill._id,
+        billNumber: bill.billNumber,
+        total: bill.total
+      }
+    });
+  } catch (error) {
+    console.error('Bill deletion error:', error);
+    res.status(500).json({ 
+      message: 'Server error',
+      details: error.message
+    });
+  }
 }; 

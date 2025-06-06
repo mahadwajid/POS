@@ -6,31 +6,32 @@ const expenseSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  category: {
+    type: String,
+    required: true,
+    enum: ['Rent', 'Utilities', 'Salary', 'Marketing', 'Maintenance', 'Office Supplies', 'Travel', 'Misc']
+  },
   amount: {
     type: Number,
     required: true,
     min: 0
   },
-  category: {
+  paymentMethod: {
     type: String,
     required: true,
-    enum: ['Rent', 'Utilities', 'Salaries', 'Inventory', 'Maintenance', 'Marketing', 'Other']
+    enum: ['cash', 'card', 'bank', 'upi']
   },
   date: {
     type: Date,
-    required: true
+    required: true,
+    default: Date.now
   },
   description: {
     type: String,
     trim: true
   },
-  paymentMethod: {
-    type: String,
-    enum: ['Cash', 'Card', 'Bank Transfer'],
-    required: true
-  },
-  receipt: {
-    type: String // URL or path to receipt image/document
+  receiptUrl: {
+    type: String
   },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,

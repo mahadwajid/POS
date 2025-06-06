@@ -1,11 +1,11 @@
-import Expense from '../models/Expense.js';
+import Expense from '../Models/Expense.js';
 
 // @desc    Get all expenses
 // @route   GET /api/expenses
 // @access  Private
 export const getExpenses = async (req, res) => {
   try {
-    const { startDate, endDate, category, paymentMethod, sort } = req.query;
+    const { startDate, endDate, category, sort } = req.query;
     const query = {};
 
     if (startDate && endDate) {
@@ -19,18 +19,23 @@ export const getExpenses = async (req, res) => {
       query.category = category;
     }
 
-    if (paymentMethod) {
-      query.paymentMethod = paymentMethod;
-    }
-
     let sortOption = { date: -1 };
     if (sort) {
       const [field, order] = sort.split(':');
       sortOption = { [field]: order === 'desc' ? -1 : 1 };
     }
 
-    const expenses = await Expense.find(query).sort(sortOption);
-    res.json(expenses);
+    const expenses = await Expense.find(query)
+      .populate('createdBy', 'username')
+      .sort(sortOption);
+
+    // Calculate total
+    const total = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+
+    res.json({
+      expenses,
+      total
+    });
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
   }
@@ -41,10 +46,13 @@ export const getExpenses = async (req, res) => {
 // @access  Private
 export const getExpenseById = async (req, res) => {
   try {
-    const expense = await Expense.findById(req.params.id);
+    const expense = await Expense.findById(req.params.id)
+      .populate('createdBy', 'username');
+
     if (!expense) {
       return res.status(404).json({ message: 'Expense not found' });
     }
+
     res.json(expense);
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
@@ -53,29 +61,28 @@ export const getExpenseById = async (req, res) => {
 
 // @desc    Create new expense
 // @route   POST /api/expenses
-// @access  Private
+// @access  Private/Admin
 export const createExpense = async (req, res) => {
   try {
     const {
       title,
-      amount,
       category,
+      amount,
       paymentMethod,
       date,
       description,
-      isRecurring,
-      recurringFrequency
+      receiptUrl
     } = req.body;
 
     const expense = await Expense.create({
       title,
-      amount,
       category,
+      amount,
       paymentMethod,
       date: date || new Date(),
       description,
-      isRecurring,
-      recurringFrequency: isRecurring ? recurringFrequency : undefined
+      receiptUrl,
+      createdBy: req.user._id
     });
 
     res.status(201).json(expense);
@@ -86,18 +93,17 @@ export const createExpense = async (req, res) => {
 
 // @desc    Update expense
 // @route   PUT /api/expenses/:id
-// @access  Private
+// @access  Private/Admin
 export const updateExpense = async (req, res) => {
   try {
     const {
       title,
-      amount,
       category,
+      amount,
       paymentMethod,
       date,
       description,
-      isRecurring,
-      recurringFrequency
+      receiptUrl
     } = req.body;
 
     const expense = await Expense.findById(req.params.id);
@@ -105,14 +111,15 @@ export const updateExpense = async (req, res) => {
       return res.status(404).json({ message: 'Expense not found' });
     }
 
-    expense.title = title;
-    expense.amount = amount;
-    expense.category = category;
-    expense.paymentMethod = paymentMethod;
-    expense.date = date;
-    expense.description = description;
-    expense.isRecurring = isRecurring;
-    expense.recurringFrequency = isRecurring ? recurringFrequency : undefined;
+    Object.assign(expense, {
+      title,
+      category,
+      amount,
+      paymentMethod,
+      date: date || expense.date,
+      description,
+      receiptUrl
+    });
 
     await expense.save();
     res.json(expense);
@@ -123,7 +130,7 @@ export const updateExpense = async (req, res) => {
 
 // @desc    Delete expense
 // @route   DELETE /api/expenses/:id
-// @access  Private
+// @access  Private/Admin
 export const deleteExpense = async (req, res) => {
   try {
     const expense = await Expense.findById(req.params.id);
@@ -131,8 +138,58 @@ export const deleteExpense = async (req, res) => {
       return res.status(404).json({ message: 'Expense not found' });
     }
 
-    await expense.remove();
-    res.json({ message: 'Expense removed' });
+    await expense.deleteOne();
+    res.json({ message: 'Expense deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// @desc    Get expense report
+// @route   GET /api/expenses/report
+// @access  Private
+export const getExpenseReport = async (req, res) => {
+  try {
+    const { startDate, endDate, groupBy = 'month' } = req.query;
+
+    const matchStage = {};
+    if (startDate && endDate) {
+      matchStage.date = {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate)
+      };
+    }
+
+    const groupStage = {
+      _id: groupBy === 'month' 
+        ? { $dateToString: { format: '%Y-%m', date: '$date' } }
+        : '$category',
+      total: { $sum: '$amount' },
+      count: { $sum: 1 }
+    };
+
+    const report = await Expense.aggregate([
+      { $match: matchStage },
+      { $group: groupStage },
+      { $sort: { _id: 1 } }
+    ]);
+
+    // Get category distribution
+    const categoryDistribution = await Expense.aggregate([
+      { $match: matchStage },
+      {
+        $group: {
+          _id: '$category',
+          total: { $sum: '$amount' }
+        }
+      },
+      { $sort: { total: -1 } }
+    ]);
+
+    res.json({
+      report,
+      categoryDistribution
+    });
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
   }
