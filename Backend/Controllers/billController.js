@@ -96,7 +96,8 @@ export const createBill = async (req, res) => {
       dueAmount,
       paymentMethod,
       notes,
-      status: dueAmount > 0 ? 'partial' : 'paid'
+      status: dueAmount > 0 ? 'Partially Paid' : 'Paid',
+      createdBy: req.user._id
     });
 
     // Update product quantities
@@ -120,7 +121,11 @@ export const createBill = async (req, res) => {
 
     res.status(201).json(populatedBill);
   } catch (error) {
-    res.status(500).json({ message: 'Server error' });
+    console.error('Bill creation error:', error);
+    res.status(500).json({ 
+      message: 'Server error',
+      details: error.message 
+    });
   }
 };
 
@@ -175,41 +180,27 @@ export const updateBillPayment = async (req, res) => {
 // @desc    Get today's sales summary
 // @route   GET /api/bills/summary/today
 // @access  Private
-export const getTodaySalesSummary = async (req, res) => {
+export const getTodaySummary = async (req, res) => {
   try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    const summary = await Bill.aggregate([
-      {
-        $match: {
-          date: {
-            $gte: today,
-            $lt: tomorrow
-          }
-        }
-      },
-      {
-        $group: {
-          _id: null,
-          totalSales: { $sum: '$total' },
-          totalPaid: { $sum: '$paidAmount' },
-          totalDue: { $sum: '$dueAmount' },
-          count: { $sum: 1 }
-        }
-      }
-    ]);
-
-    res.json(summary[0] || {
-      totalSales: 0,
-      totalPaid: 0,
-      totalDue: 0,
-      count: 0
+    const bills = await Bill.find({
+      createdAt: { $gte: today, $lt: tomorrow }
     });
+
+    const summary = {
+      totalSales: bills.reduce((sum, bill) => sum + bill.total, 0),
+      totalPaid: bills.reduce((sum, bill) => sum + bill.paidAmount, 0),
+      totalDue: bills.reduce((sum, bill) => sum + bill.dueAmount, 0),
+      count: bills.length
+    };
+
+    res.json(summary);
   } catch (error) {
+    console.error('Today summary error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -217,43 +208,37 @@ export const getTodaySalesSummary = async (req, res) => {
 // @desc    Get weekly sales summary
 // @route   GET /api/bills/summary/weekly
 // @access  Private
-export const getWeeklySalesSummary = async (req, res) => {
+export const getWeeklySummary = async (req, res) => {
   try {
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - today.getDay());
+    startOfWeek.setHours(0, 0, 0, 0);
 
-    const lastWeek = new Date(today);
-    lastWeek.setDate(lastWeek.getDate() - 7);
+    const bills = await Bill.find({
+      createdAt: { $gte: startOfWeek }
+    });
 
-    const summary = await Bill.aggregate([
-      {
-        $match: {
-          date: {
-            $gte: lastWeek,
-            $lte: today
-          }
-        }
-      },
-      {
-        $group: {
-          _id: { $dateToString: { format: '%Y-%m-%d', date: '$date' } },
-          total: { $sum: '$total' },
-          paid: { $sum: '$paidAmount' }
-        }
-      },
-      {
-        $project: {
-          _id: 0,
-          date: '$_id',
-          total: 1,
-          paid: 1
-        }
-      },
-      { $sort: { date: 1 } }
-    ]);
+    const dailySummary = Array(7).fill().map((_, index) => {
+      const date = new Date(startOfWeek);
+      date.setDate(date.getDate() + index);
+      const nextDate = new Date(date);
+      nextDate.setDate(nextDate.getDate() + 1);
 
-    res.json(summary);
+      const dayBills = bills.filter(bill => 
+        bill.createdAt >= date && bill.createdAt < nextDate
+      );
+
+      return {
+        _id: date.toISOString().split('T')[0],
+        amount: dayBills.reduce((sum, bill) => sum + bill.total, 0),
+        count: dayBills.length
+      };
+    });
+
+    res.json(dailySummary);
   } catch (error) {
+    console.error('Weekly summary error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -261,43 +246,36 @@ export const getWeeklySalesSummary = async (req, res) => {
 // @desc    Get monthly sales summary
 // @route   GET /api/bills/summary/monthly
 // @access  Private
-export const getMonthlySalesSummary = async (req, res) => {
+export const getMonthlySummary = async (req, res) => {
   try {
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
 
-    const lastMonth = new Date(today);
-    lastMonth.setMonth(lastMonth.getMonth() - 1);
+    const bills = await Bill.find({
+      createdAt: { $gte: startOfMonth, $lte: endOfMonth }
+    });
 
-    const summary = await Bill.aggregate([
-      {
-        $match: {
-          date: {
-            $gte: lastMonth,
-            $lte: today
-          }
-        }
-      },
-      {
-        $group: {
-          _id: { $dateToString: { format: '%Y-%m', date: '$date' } },
-          total: { $sum: '$total' },
-          paid: { $sum: '$paidAmount' }
-        }
-      },
-      {
-        $project: {
-          _id: 0,
-          month: '$_id',
-          total: 1,
-          paid: 1
-        }
-      },
-      { $sort: { month: 1 } }
-    ]);
+    const dailySummary = Array(endOfMonth.getDate()).fill().map((_, index) => {
+      const date = new Date(startOfMonth);
+      date.setDate(date.getDate() + index);
+      const nextDate = new Date(date);
+      nextDate.setDate(nextDate.getDate() + 1);
 
-    res.json(summary);
+      const dayBills = bills.filter(bill => 
+        bill.createdAt >= date && bill.createdAt < nextDate
+      );
+
+      return {
+        _id: date.toISOString().split('T')[0],
+        amount: dayBills.reduce((sum, bill) => sum + bill.total, 0),
+        count: dayBills.length
+      };
+    });
+
+    res.json(dailySummary);
   } catch (error) {
+    console.error('Monthly summary error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -305,36 +283,30 @@ export const getMonthlySalesSummary = async (req, res) => {
 // @desc    Get category-wise sales summary
 // @route   GET /api/bills/summary/category
 // @access  Private
-export const getCategorySalesSummary = async (req, res) => {
+export const getCategorySummary = async (req, res) => {
   try {
-    const summary = await Bill.aggregate([
-      { $unwind: '$items' },
-      {
-        $lookup: {
-          from: 'products',
-          localField: 'items.product',
-          foreignField: '_id',
-          as: 'product'
-        }
-      },
-      { $unwind: '$product' },
-      {
-        $group: {
-          _id: '$product.category',
-          total: { $sum: { $multiply: ['$items.price', '$items.quantity'] } }
-        }
-      },
-      {
-        $project: {
-          _id: 0,
-          category: '$_id',
-          total: 1
-        }
-      }
-    ]);
+    const bills = await Bill.find()
+      .populate('items.product', 'category');
 
-    res.json(summary);
+    const categorySummary = bills.reduce((summary, bill) => {
+      bill.items.forEach(item => {
+        const category = item.product.category || 'Uncategorized';
+        if (!summary[category]) {
+          summary[category] = {
+            _id: category,
+            amount: 0,
+            count: 0
+          };
+        }
+        summary[category].amount += item.price * item.quantity;
+        summary[category].count += item.quantity;
+      });
+      return summary;
+    }, {});
+
+    res.json(Object.values(categorySummary));
   } catch (error) {
+    console.error('Category summary error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };

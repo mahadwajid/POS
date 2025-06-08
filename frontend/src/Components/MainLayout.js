@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   AppBar,
@@ -13,6 +13,8 @@ import {
   Toolbar,
   Typography,
   useTheme,
+  Menu,
+  MenuItem,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -24,31 +26,55 @@ import {
   Money,
   Assessment,
   Person,
+  Logout,
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 
 const drawerWidth = 240;
 
-const menuItems = [
-  { text: 'Dashboard', icon: <Dashboard />, path: '/dashboard' },
-  { text: 'Products', icon: <ShoppingCart />, path: '/products' },
-  { text: 'Customers', icon: <People />, path: '/customers' },
-  { text: 'Billing', icon: <Receipt />, path: '/billing' },
-  { text: 'Ledger', icon: <AccountBalance />, path: '/ledger' },
-  { text: 'Expenses', icon: <Money />, path: '/expenses' },
-  { text: 'Reports', icon: <Assessment />, path: '/reports' },
-  { text: 'Users', icon: <Person />, path: '/users' },
-];
-
 const MainLayout = ({ children }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [anchorEl, setAnchorEl] = useState(null);
   const theme = useTheme();
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
+
+  useEffect(() => {
+    console.log('Current user:', user);
+  }, [user]);
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
   };
+
+  const handleMenuClick = (event) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleLogout = () => {
+    handleMenuClose();
+    logout();
+    navigate('/login');
+  };
+
+  const menuItems = [
+    { text: 'Dashboard', icon: <Dashboard />, path: '/dashboard' },
+    { text: 'Products', icon: <ShoppingCart />, path: '/products' },
+    { text: 'Customers', icon: <People />, path: '/customers' },
+    { text: 'Billing', icon: <Receipt />, path: '/billing' },
+    { text: 'Ledger', icon: <AccountBalance />, path: '/ledger' },
+    { text: 'Expenses', icon: <Money />, path: '/expenses' },
+    { text: 'Reports', icon: <Assessment />, path: '/reports' },
+  ];
+
+  // Add Users menu item for super admin
+  if (user?.role === 'super_admin') {
+    menuItems.push({ text: 'Users', icon: <Person />, path: '/users' });
+  }
 
   const drawer = (
     <div>
@@ -95,9 +121,26 @@ const MainLayout = ({ children }) => {
           <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
             POS System
           </Typography>
-          <IconButton color="inherit" onClick={logout}>
-            <Person />
-          </IconButton>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Typography variant="body1" sx={{ mr: 2 }}>
+              {user?.name} ({user?.role})
+            </Typography>
+            <IconButton color="inherit" onClick={handleMenuClick}>
+              <Person />
+            </IconButton>
+            <Menu
+              anchorEl={anchorEl}
+              open={Boolean(anchorEl)}
+              onClose={handleMenuClose}
+            >
+              <MenuItem onClick={handleLogout}>
+                <ListItemIcon>
+                  <Logout fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>Logout</ListItemText>
+              </MenuItem>
+            </Menu>
+          </Box>
         </Toolbar>
       </AppBar>
       <Box

@@ -2,11 +2,17 @@ import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 
 const userSchema = new mongoose.Schema({
-  username: {
+  name: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  email: {
     type: String,
     required: true,
     unique: true,
-    trim: true
+    trim: true,
+    lowercase: true
   },
   password: {
     type: String,
@@ -17,21 +23,16 @@ const userSchema = new mongoose.Schema({
     enum: ['super_admin', 'sub_admin'],
     default: 'sub_admin'
   },
-  fullName: {
-    type: String,
-    required: true
-  },
-  email: {
-    type: String,
-    required: true,
-    unique: true
-  },
   isActive: {
     type: Boolean,
     default: true
   },
   lastLogin: {
     type: Date
+  },
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
   }
 }, {
   timestamps: true
@@ -40,16 +41,33 @@ const userSchema = new mongoose.Schema({
 // Hash password before saving
 userSchema.pre('save', async function(next) {
   if (!this.isModified('password')) return next();
-  this.password = await bcrypt.hash(this.password, 10);
-  next();
+  
+  try {
+    console.log('Hashing password for user:', this.email);
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+    console.log('Password hashed successfully');
+    next();
+  } catch (error) {
+    console.error('Error hashing password:', error);
+    next(error);
+  }
 });
 
 // Method to compare password
 userSchema.methods.comparePassword = async function(candidatePassword) {
-  return await bcrypt.compare(candidatePassword, this.password);
+  try {
+    console.log('Comparing passwords for user:', this.email);
+    const isMatch = await bcrypt.compare(candidatePassword, this.password);
+    console.log('Password match result:', isMatch);
+    return isMatch;
+  } catch (error) {
+    console.error('Error comparing passwords:', error);
+    throw error;
+  }
 };
 
-// Prevent OverwriteModelError
+// Check if model exists before creating a new one
 const User = mongoose.models.User || mongoose.model('User', userSchema);
 
 export default User; 

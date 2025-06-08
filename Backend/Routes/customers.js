@@ -7,10 +7,14 @@ import {
   updateCustomer,
   deleteCustomer,
   getCustomerLedger,
-  recordPayment
+  recordPayment,
+  getCustomerStats
 } from '../Controllers/customerController.js';
 
 const router = express.Router();
+
+// Get customer statistics
+router.get('/stats', auth, getCustomerStats);
 
 // Get all customers
 router.get('/', auth, getCustomers);

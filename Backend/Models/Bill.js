@@ -67,7 +67,7 @@ const billSchema = new mongoose.Schema({
   },
   paymentMethod: {
     type: String,
-    enum: ['Cash', 'Card', 'Bank Transfer', 'Credit'],
+    enum: ['Cash', 'Card', 'UPI', 'Bank Transfer', 'Credit'],
     required: true
   },
   status: {

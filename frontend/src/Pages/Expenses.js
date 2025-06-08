@@ -296,7 +296,7 @@ const Expenses = () => {
                   </TableCell>
                   <TableCell>{expense.title}</TableCell>
                   <TableCell>{expense.category}</TableCell>
-                  <TableCell>₹{expense.amount.toFixed(2)}</TableCell>
+                  <TableCell>Rs. {expense.amount.toFixed(2)}</TableCell>
                   <TableCell>{expense.paymentMethod}</TableCell>
                   <TableCell>{expense.description}</TableCell>
                   <TableCell>
@@ -340,7 +340,7 @@ const Expenses = () => {
 
       <Box mt={2} display="flex" justifyContent="flex-end">
         <Typography variant="h6">
-          Total Expenses: ₹{total.toFixed(2)}
+          Total Expenses: Rs. {total.toFixed(2)}
         </Typography>
       </Box>
 
@@ -394,7 +394,7 @@ const Expenses = () => {
                   error={formik.touched.amount && Boolean(formik.errors.amount)}
                   helperText={formik.touched.amount && formik.errors.amount}
                   InputProps={{
-                    startAdornment: <InputAdornment position="start">₹</InputAdornment>,
+                    startAdornment: <InputAdornment position="start">Rs.</InputAdornment>,
                   }}
                 />
               </Grid>

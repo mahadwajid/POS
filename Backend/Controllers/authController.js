@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import User from '../models/User.js';
+import User from '../Models/User.js';
 
 // @desc    Register new user
 // @route   POST /api/auth/register
@@ -51,10 +51,13 @@ export const register = async (req, res) => {
 // @access  Public
 export const login = async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { email, password } = req.body;
+    console.log('Login attempt:', { email });
 
     // Check for user
-    const user = await User.findOne({ username });
+    const user = await User.findOne({ email: email.toLowerCase() });
+    console.log('User found:', user ? { id: user._id, role: user.role } : 'No user found');
+    
     if (!user) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
@@ -64,8 +67,10 @@ export const login = async (req, res) => {
       return res.status(401).json({ message: 'Account is inactive' });
     }
 
-    // Check password
-    const isMatch = await bcrypt.compare(password, user.password);
+    // Check password using the model's method
+    const isMatch = await user.comparePassword(password);
+    console.log('Password valid:', isMatch);
+    
     if (!isMatch) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
@@ -76,19 +81,28 @@ export const login = async (req, res) => {
 
     // Generate token
     const token = jwt.sign(
-      { id: user._id, role: user.role },
+      { userId: user._id, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: '1d' }
     );
 
-    res.json({
+    // Send user data without sensitive information
+    const userData = {
       _id: user._id,
-      username: user.username,
+      name: user.name,
       email: user.email,
       role: user.role,
-      token
+      isActive: user.isActive,
+      lastLogin: user.lastLogin
+    };
+
+    console.log('Sending user data:', userData);
+    res.json({
+      token,
+      user: userData
     });
   } catch (error) {
+    console.error('Login error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };

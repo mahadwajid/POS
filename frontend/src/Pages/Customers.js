@@ -273,10 +273,10 @@ const Customers = () => {
                       color={customer.totalDue > 0 ? 'error' : 'success'}
                       fontWeight="bold"
                     >
-                      ₹{customer.totalDue.toFixed(2)}
+                      Rs. {customer.totalDue.toFixed(2)}
                     </Typography>
                   </TableCell>
-                  <TableCell>₹{customer.creditLimit.toFixed(2)}</TableCell>
+                  <TableCell>Rs. {customer.creditLimit.toFixed(2)}</TableCell>
                   <TableCell>
                     <Chip
                       label={customer.isActive ? 'Active' : 'Inactive'}
@@ -468,7 +468,7 @@ const Customers = () => {
                 Customer: {selectedCustomer.name}
               </Typography>
               <Typography variant="subtitle1" gutterBottom>
-                Current Due: ₹{selectedCustomer.totalDue.toFixed(2)}
+                Current Due: Rs. {selectedCustomer.totalDue.toFixed(2)}
               </Typography>
               <TextField
                 fullWidth
@@ -478,7 +478,7 @@ const Customers = () => {
                 value={paymentData.amount}
                 onChange={(e) => setPaymentData(prev => ({ ...prev, amount: e.target.value }))}
                 InputProps={{
-                  startAdornment: <InputAdornment position="start">₹</InputAdornment>,
+                  startAdornment: <InputAdornment position="start">Rs.</InputAdornment>,
                 }}
               />
               <TextField

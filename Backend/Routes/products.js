@@ -13,6 +13,9 @@ import {
 
 const router = express.Router();
 
+// Get low stock products
+router.get('/inventory/low-stock', auth, getLowStockProducts);
+
 // Get all products
 router.get('/', auth, getProducts);
 
@@ -27,9 +30,6 @@ router.put('/:id', auth, isSuperAdmin, updateProduct);
 
 // Delete product (Super Admin only)
 router.delete('/:id', auth, isSuperAdmin, deleteProduct);
-
-// Get low stock products
-router.get('/inventory/low-stock', auth, getLowStockProducts);
 
 // Update product quantity
 router.put('/:id/quantity', auth, isSuperAdmin, updateProductQuantity);

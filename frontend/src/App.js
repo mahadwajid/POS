@@ -12,6 +12,7 @@ import Expenses from './Pages/Expenses';
 import Reports from './Pages/Reports';
 import Users from './Pages/Users';
 import Ledger from './Pages/Ledger';
+import PeopleIcon from '@mui/icons-material/People';
 
 // Create theme
 const theme = createTheme({

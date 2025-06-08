@@ -242,12 +242,15 @@ export const exportProducts = async (req, res) => {
 // @access  Private
 export const getLowStockProducts = async (req, res) => {
   try {
+    const lowStockThreshold = 10; // Products with quantity less than this are considered low stock
     const products = await Product.find({
-      isActive: true,
-      $expr: { $lte: ['$quantity', '$lowStockAlert'] }
-    });
+      quantity: { $lt: lowStockThreshold },
+      isActive: true
+    }).select('name sku price quantity category');
+
     res.json(products);
   } catch (error) {
+    console.error('Low stock products error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };

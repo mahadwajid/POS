@@ -276,10 +276,10 @@ const Ledger = () => {
               </Box>
               <Box>
                 <Typography variant="h6" color={selectedCustomer.totalDue > 0 ? 'error' : 'success'}>
-                  Balance: ₹{selectedCustomer.totalDue.toFixed(2)}
+                  Balance: Rs. {selectedCustomer.totalDue.toFixed(2)}
                 </Typography>
                 <Typography variant="body2" color="textSecondary">
-                  Credit Limit: ₹{selectedCustomer.creditLimit.toFixed(2)}
+                  Credit Limit: Rs. {selectedCustomer.creditLimit.toFixed(2)}
                 </Typography>
               </Box>
             </Box>
@@ -331,10 +331,10 @@ const Ledger = () => {
                             {transaction.description}
                           </TableCell>
                           <TableCell align="right">
-                            ₹{transaction.amount?.toFixed(2) || '0.00'}
+                            Rs. {transaction.amount?.toFixed(2) || '0.00'}
                           </TableCell>
                           <TableCell align="right">
-                            ₹{transaction.balance?.toFixed(2) || '0.00'}
+                            Rs. {transaction.balance?.toFixed(2) || '0.00'}
                           </TableCell>
                         </TableRow>
                       ))
@@ -370,7 +370,7 @@ const Ledger = () => {
               onChange={(e) => setPaymentAmount(e.target.value)}
               sx={{ mb: 2 }}
               InputProps={{
-                startAdornment: <InputAdornment position="start">₹</InputAdornment>,
+                startAdornment: <InputAdornment position="start">Rs.</InputAdornment>,
               }}
             />
             <TextField

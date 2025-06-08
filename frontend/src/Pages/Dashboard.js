@@ -20,7 +20,8 @@ import {
   Line,
   PieChart,
   Pie,
-  Cell
+  Cell,
+  ResponsiveContainer
 } from 'recharts';
 import { useAuth } from '../context/AuthContext';
 import api from '../Services/api';
@@ -120,28 +121,113 @@ const Dashboard = () => {
         Dashboard
       </Typography>
       <Grid container spacing={3}>
+        {/* Today's Summary */}
         <Grid item xs={12} md={6} lg={3}>
           <Paper sx={{ p: 2 }}>
-            <Typography variant="h6">Total Sales</Typography>
-            <Typography variant="h4">$0.00</Typography>
+            <Typography variant="h6">Today's Sales</Typography>
+            <Typography variant="h4">Rs. {salesData.today.totalSales.toFixed(2)}</Typography>
+            <Typography variant="body2" color="text.secondary">
+              {salesData.today.count} transactions
+            </Typography>
           </Paper>
         </Grid>
         <Grid item xs={12} md={6} lg={3}>
           <Paper sx={{ p: 2 }}>
             <Typography variant="h6">Total Products</Typography>
-            <Typography variant="h4">0</Typography>
+            <Typography variant="h4">{inventoryData.totalProducts}</Typography>
+            <Typography variant="body2" color="text.secondary">
+              Rs. {inventoryData.totalValue.toFixed(2)} total value
+            </Typography>
           </Paper>
         </Grid>
         <Grid item xs={12} md={6} lg={3}>
           <Paper sx={{ p: 2 }}>
             <Typography variant="h6">Total Customers</Typography>
-            <Typography variant="h4">0</Typography>
+            <Typography variant="h4">{customerData.totalCustomers}</Typography>
+            <Typography variant="body2" color="text.secondary">
+              {customerData.customersWithDues} with dues
+            </Typography>
           </Paper>
         </Grid>
         <Grid item xs={12} md={6} lg={3}>
           <Paper sx={{ p: 2 }}>
-            <Typography variant="h6">Total Expenses</Typography>
-            <Typography variant="h4">$0.00</Typography>
+            <Typography variant="h6">Total Dues</Typography>
+            <Typography variant="h4">Rs. {customerData.totalDues.toFixed(2)}</Typography>
+            <Typography variant="body2" color="text.secondary">
+              Outstanding amount
+            </Typography>
+          </Paper>
+        </Grid>
+
+        {/* Weekly Sales Chart */}
+        <Grid item xs={12} md={8}>
+          <Paper sx={{ p: 2 }}>
+            <Typography variant="h6" gutterBottom>
+              Weekly Sales
+            </Typography>
+            <Box sx={{ height: 300 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={salesData.weekly}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="_id" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Line type="monotone" dataKey="amount" stroke="#8884d8" name="Sales" />
+                </LineChart>
+              </ResponsiveContainer>
+            </Box>
+          </Paper>
+        </Grid>
+
+        {/* Category Distribution */}
+        <Grid item xs={12} md={4}>
+          <Paper sx={{ p: 2 }}>
+            <Typography variant="h6" gutterBottom>
+              Sales by Category
+            </Typography>
+            <Box sx={{ height: 300 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={salesData.categoryWise}
+                    dataKey="amount"
+                    nameKey="_id"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={80}
+                    label
+                  >
+                    {salesData.categoryWise.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </Box>
+          </Paper>
+        </Grid>
+
+        {/* Monthly Sales Chart */}
+        <Grid item xs={12}>
+          <Paper sx={{ p: 2 }}>
+            <Typography variant="h6" gutterBottom>
+              Monthly Sales
+            </Typography>
+            <Box sx={{ height: 300 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={salesData.monthly}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="_id" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="amount" fill="#8884d8" name="Sales" />
+                </BarChart>
+              </ResponsiveContainer>
+            </Box>
           </Paper>
         </Grid>
       </Grid>

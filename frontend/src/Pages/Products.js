@@ -178,17 +178,16 @@ const Products = () => {
     setSnackbar({ ...snackbar, open: false });
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'In Stock':
-        return 'success';
-      case 'Low Stock':
-        return 'warning';
-      case 'Out of Stock':
-        return 'error';
-      default:
-        return 'default';
-    }
+  const getStatusColor = (product) => {
+    if (product.quantity <= 0) return 'error';
+    if (product.quantity <= product.lowStockAlert) return 'warning';
+    return 'success';
+  };
+
+  const getStatusLabel = (product) => {
+    if (product.quantity <= 0) return 'Out of Stock';
+    if (product.quantity <= product.lowStockAlert) return 'Low Stock';
+    return 'In Stock';
   };
 
   return (
@@ -196,7 +195,7 @@ const Products = () => {
       <Box sx={{ mb: 4 }}>
         <Typography variant="h4" component="h1" gutterBottom>
           Products Management
-      </Typography>
+        </Typography>
 
         <Grid container spacing={2} sx={{ mb: 3 }}>
           <Grid item xs={12} md={3}>
@@ -268,6 +267,7 @@ const Products = () => {
                 <TableCell>Category</TableCell>
                 <TableCell>Price</TableCell>
                 <TableCell>Quantity</TableCell>
+                <TableCell>Low Stock Alert</TableCell>
                 <TableCell>Unit</TableCell>
                 <TableCell>Status</TableCell>
                 <TableCell>Actions</TableCell>
@@ -275,16 +275,22 @@ const Products = () => {
             </TableHead>
             <TableBody>
               {products.map((product) => (
-                <TableRow key={product._id}>
+                <TableRow 
+                  key={product._id}
+                  sx={{
+                    backgroundColor: product.quantity <= product.lowStockAlert ? 'rgba(255, 152, 0, 0.1)' : 'inherit'
+                  }}
+                >
                   <TableCell>{product.name}</TableCell>
                   <TableCell>{product.category}</TableCell>
-                  <TableCell>${product.price}</TableCell>
+                  <TableCell>Rs. {product.price}</TableCell>
                   <TableCell>{product.quantity}</TableCell>
+                  <TableCell>{product.lowStockAlert}</TableCell>
                   <TableCell>{product.unitType}</TableCell>
                   <TableCell>
                     <Chip
-                      label={product.status}
-                      color={getStatusColor(product.status)}
+                      label={getStatusLabel(product)}
+                      color={getStatusColor(product)}
                       size="small"
                     />
                   </TableCell>
@@ -441,7 +447,7 @@ const Products = () => {
                 />
               </Grid>
             </Grid>
-    </Box>
+          </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClose}>Cancel</Button>

@@ -158,6 +158,7 @@ const Billing = () => {
         paidAmount,
         dueAmount: balanceAmount,
         paymentMethod: paymentMethod.charAt(0).toUpperCase() + paymentMethod.slice(1),
+        status: balanceAmount > 0 ? 'Partially Paid' : 'Paid',
         notes
       };
 
@@ -233,7 +234,7 @@ const Billing = () => {
           <Paper sx={{ p: 2, mb: 2 }}>
             <Autocomplete
               options={products.filter(p => p.isActive)}
-              getOptionLabel={(option) => `${option.name} (₹${option.price})`}
+              getOptionLabel={(option) => `${option.name} (Rs. ${option.price})`}
               onChange={(event, newValue) => newValue && handleAddItem(newValue)}
               renderInput={(params) => (
                 <TextField
@@ -260,7 +261,7 @@ const Billing = () => {
                 {items.map((item) => (
                   <TableRow key={item.productId}>
                     <TableCell>{item.name}</TableCell>
-                    <TableCell align="right">₹{item.price.toFixed(2)}</TableCell>
+                    <TableCell align="right">Rs. {item.price.toFixed(2)}</TableCell>
                     <TableCell align="center">
                       <Box display="flex" alignItems="center" justifyContent="center">
                         <IconButton
@@ -278,7 +279,7 @@ const Billing = () => {
                         </IconButton>
                       </Box>
                     </TableCell>
-                    <TableCell align="right">₹{item.total.toFixed(2)}</TableCell>
+                    <TableCell align="right">Rs. {item.total.toFixed(2)}</TableCell>
                     <TableCell align="center">
                       <IconButton
                         size="small"
@@ -347,7 +348,7 @@ const Billing = () => {
                   value={paidAmount}
                   onChange={(e) => setPaidAmount(Math.max(0, Number(e.target.value)))}
                   InputProps={{
-                    startAdornment: <InputAdornment position="start">₹</InputAdornment>,
+                    startAdornment: <InputAdornment position="start">Rs.</InputAdornment>,
                   }}
                 />
               </Grid>
@@ -368,23 +369,23 @@ const Billing = () => {
             <Box>
               <Box display="flex" justifyContent="space-between" mb={1}>
                 <Typography>Subtotal:</Typography>
-                <Typography>₹{subTotal.toFixed(2)}</Typography>
+                <Typography>Rs. {subTotal.toFixed(2)}</Typography>
               </Box>
               <Box display="flex" justifyContent="space-between" mb={1}>
                 <Typography>Discount:</Typography>
-                <Typography color="error">-₹{discountAmount.toFixed(2)}</Typography>
+                <Typography color="error">-Rs. {discountAmount.toFixed(2)}</Typography>
               </Box>
               <Box display="flex" justifyContent="space-between" mb={1}>
                 <Typography>Tax:</Typography>
-                <Typography>₹{taxAmount.toFixed(2)}</Typography>
+                <Typography>Rs. {taxAmount.toFixed(2)}</Typography>
               </Box>
               <Box display="flex" justifyContent="space-between" mb={1}>
                 <Typography variant="h6">Grand Total:</Typography>
-                <Typography variant="h6">₹{grandTotal.toFixed(2)}</Typography>
+                <Typography variant="h6">Rs. {grandTotal.toFixed(2)}</Typography>
               </Box>
               <Box display="flex" justifyContent="space-between" mb={1}>
                 <Typography>Amount Paid:</Typography>
-                <Typography>₹{paidAmount.toFixed(2)}</Typography>
+                <Typography>Rs. {paidAmount.toFixed(2)}</Typography>
               </Box>
               <Box display="flex" justifyContent="space-between">
                 <Typography variant="h6">Balance Due:</Typography>
@@ -392,7 +393,7 @@ const Billing = () => {
                   variant="h6"
                   color={balanceAmount > 0 ? 'error' : 'success'}
                 >
-                  ₹{balanceAmount.toFixed(2)}
+                  Rs. {balanceAmount.toFixed(2)}
                 </Typography>
               </Box>
             </Box>

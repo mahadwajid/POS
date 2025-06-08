@@ -1,21 +1,24 @@
 import express from 'express';
-import { Product } from '../Models/index.js';
-import Bill from '../Models/Bill.js';
-import Customer from '../Models/Customer.js';
-import { auth, isSuperAdmin } from '../Middlewares/auth.js';
+import { auth } from '../Middlewares/auth.js';
 import {
   getBills,
   getBillById,
   createBill,
   updateBillPayment,
-  getTodaySalesSummary,
-  getWeeklySalesSummary,
-  getMonthlySalesSummary,
-  getCategorySalesSummary,
-  deleteBill
+  deleteBill,
+  getTodaySummary,
+  getWeeklySummary,
+  getMonthlySummary,
+  getCategorySummary
 } from '../Controllers/billController.js';
 
 const router = express.Router();
+
+// Get bill summaries
+router.get('/summary/today', auth, getTodaySummary);
+router.get('/summary/weekly', auth, getWeeklySummary);
+router.get('/summary/monthly', auth, getMonthlySummary);
+router.get('/summary/category', auth, getCategorySummary);
 
 // Get all bills
 router.get('/', auth, getBills);
@@ -29,13 +32,7 @@ router.post('/', auth, createBill);
 // Update bill payment
 router.put('/:id/payment', auth, updateBillPayment);
 
-// Delete bill (Super Admin only)
-router.delete('/:id', auth, isSuperAdmin, deleteBill);
-
-// Get sales summaries
-router.get('/summary/today', auth, getTodaySalesSummary);
-router.get('/summary/weekly', auth, getWeeklySalesSummary);
-router.get('/summary/monthly', auth, getMonthlySalesSummary);
-router.get('/summary/category', auth, getCategorySalesSummary);
+// Delete bill
+router.delete('/:id', auth, deleteBill);
 
 export default router; 

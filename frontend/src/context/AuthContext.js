@@ -24,13 +24,16 @@ export const AuthProvider = ({ children }) => {
     try {
       const token = localStorage.getItem('token');
       if (token) {
-        const response = await axios.get('http://localhost:5000/api/auth/profile', {
+        console.log('Checking auth with token:', token);
+        const response = await axios.get('http://localhost:5000/api/auth/me', {
           headers: { Authorization: `Bearer ${token}` }
         });
+        console.log('Auth check response:', response.data);
         setUser(response.data);
         setIsAuthenticated(true);
       }
     } catch (error) {
+      console.error('Auth check error:', error.response?.data || error.message);
       localStorage.removeItem('token');
       setUser(null);
       setIsAuthenticated(false);
@@ -39,18 +42,26 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const login = async (username, password) => {
+  const login = async (email, password) => {
     try {
+      console.log('Attempting login with:', { email });
       const response = await axios.post('http://localhost:5000/api/auth/login', {
-        username,
+        email,
         password
       });
-      const { token, user } = response.data;
+      console.log('Login response:', response.data);
+      
+      // Handle the response structure correctly
+      const { token, user: userData } = response.data;
       localStorage.setItem('token', token);
-      setUser(user);
+      
+      // Set user data
+      setUser(userData);
       setIsAuthenticated(true);
-      return user;
+      
+      return userData;
     } catch (error) {
+      console.error('Login error:', error.response?.data || error.message);
       throw error;
     }
   };

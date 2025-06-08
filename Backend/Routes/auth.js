@@ -8,10 +8,10 @@ const router = express.Router();
 // Login route
 router.post('/login', async (req, res) => {
   try {
-    const { username, password } = req.body;
-    console.log('Login attempt:', { username });
+    const { email, password } = req.body;
+    console.log('Login attempt:', { email });
 
-    const user = await User.findOne({ username, isActive: true });
+    const user = await User.findOne({ email: email.toLowerCase(), isActive: true });
     console.log('User found:', user ? 'Yes' : 'No');
 
     if (!user) {
@@ -32,7 +32,7 @@ router.post('/login', async (req, res) => {
     await user.save();
 
     const token = jwt.sign(
-      { userId: user._id },
+      { userId: user._id, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
@@ -41,9 +41,8 @@ router.post('/login', async (req, res) => {
       token,
       user: {
         id: user._id,
-        username: user.username,
+        name: user.name,
         role: user.role,
-        fullName: user.fullName,
         email: user.email
       }
     });
