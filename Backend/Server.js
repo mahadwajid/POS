@@ -26,26 +26,26 @@ app.use(cors({
 // Middleware
 app.use(express.json());
 
+// Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/products', productRoutes);
+app.use('/api/customers', customerRoutes);
+app.use('/api/bills', billRoutes);
+app.use('/api/expenses', expenseRoutes);
+app.use('/api/reports', reportRoutes);
+app.use('/api/users', userRoutes);
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ message: 'Something went wrong!' });
+});
+
 // Initialize server
 const startServer = async () => {
   try {
     // Connect to MongoDB
     await connectDB();
-
-    // Routes
-    app.use('/api/auth', authRoutes);
-    app.use('/api/products', productRoutes);
-    app.use('/api/customers', customerRoutes);
-    app.use('/api/bills', billRoutes);
-    app.use('/api/expenses', expenseRoutes);
-    app.use('/api/reports', reportRoutes);
-    app.use('/api/users', userRoutes);
-
-    // Error handling middleware
-    app.use((err, req, res, next) => {
-      console.error(err.stack);
-      res.status(500).json({ message: 'Something went wrong!' });
-    });
 
     const PORT = process.env.PORT || 5000;
     app.listen(PORT, () => {
@@ -57,4 +57,9 @@ const startServer = async () => {
   }
 };
 
-startServer();
+// Only start the server if this file is run directly
+if (process.env.NODE_ENV !== 'test') {
+  startServer();
+}
+
+export default app;

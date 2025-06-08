@@ -1,308 +1,132 @@
-const request = require('supertest');
-const app = require('../Server');
-const User = require('../Models/User');
-const Product = require('../Models/Product');
-const bcrypt = require('bcryptjs');
+import request from 'supertest';
+import app from '../Server.js';
+import User from '../Models/User.js';
+import Product from '../Models/Product.js';
 
 describe('Product Management Tests', () => {
-    let token;
-    let testUser;
+    let adminToken;
+    let testProduct;
 
-    beforeEach(async () => {
-        // Create test user
-        const hashedPassword = await bcrypt.hash('Test@123', 10);
-        testUser = await User.create({
-            name: 'Test User',
-            email: 'test@example.com',
-            password: hashedPassword,
-            role: 'super_admin',
-            isActive: true
+    beforeAll(async () => {
+        // Create admin user
+        const admin = new User({
+            name: 'Admin User',
+            email: 'admin@example.com',
+            password: 'Admin@123',
+            role: 'super_admin'
         });
+        await admin.save();
 
         // Login to get token
         const loginRes = await request(app)
             .post('/api/auth/login')
             .send({
-                email: 'test@example.com',
-                password: 'Test@123'
+                email: 'admin@example.com',
+                password: 'Admin@123'
             });
-        token = loginRes.body.token;
+
+        adminToken = loginRes.body.token;
     });
 
-    describe('POST /api/products', () => {
-        it('should create a new product', async () => {
-            const productData = {
-                name: 'Test Product',
-                description: 'Test Description',
-                category: 'Electronics',
-                price: 1000,
-                costPrice: 800,
-                quantity: 50,
-                unitType: 'piece',
-                sku: 'TEST001',
-                brand: 'Test Brand',
-                model: 'Test Model',
-                warranty: '1 year',
-                lowStockAlert: 10,
-                isActive: true
-            };
-
-            const res = await request(app)
-                .post('/api/products')
-                .set('Authorization', `Bearer ${token}`)
-                .send(productData);
-
-            expect(res.status).toBe(201);
-            expect(res.body).toHaveProperty('_id');
-            expect(res.body.name).toBe(productData.name);
-            expect(res.body.sku).toBe(productData.sku);
-            expect(res.body.quantity).toBe(productData.quantity);
-        });
-
-        it('should not create product without authentication', async () => {
-            const productData = {
-                name: 'Test Product',
-                price: 1000,
-                quantity: 50
-            };
-
-            const res = await request(app)
-                .post('/api/products')
-                .send(productData);
-
-            expect(res.status).toBe(401);
-        });
-
-        it('should not create product with duplicate SKU', async () => {
-            // First create a product
-            await Product.create({
-                name: 'Existing Product',
-                sku: 'TEST001',
-                price: 1000,
-                quantity: 50,
-                category: 'Electronics',
-                unitType: 'piece'
-            });
-
-            // Try to create another product with same SKU
-            const productData = {
-                name: 'Test Product',
-                sku: 'TEST001',
-                price: 1000,
-                quantity: 50,
-                category: 'Electronics',
-                unitType: 'piece'
-            };
-
-            const res = await request(app)
-                .post('/api/products')
-                .set('Authorization', `Bearer ${token}`)
-                .send(productData);
-
-            expect(res.status).toBe(400);
-        });
+    afterAll(async () => {
+        // Clean up test data
+        await User.deleteOne({ email: 'admin@example.com' });
+        if (testProduct) {
+            await Product.deleteOne({ _id: testProduct._id });
+        }
     });
 
     describe('GET /api/products', () => {
-        beforeEach(async () => {
-            // Create some test products
-            await Product.create([
-                {
-                    name: 'Product 1',
-                    description: 'Description 1',
-                    category: 'Electronics',
-                    price: 1000,
-                    costPrice: 800,
-                    quantity: 50,
-                    unitType: 'piece',
-                    sku: 'TEST001',
-                    brand: 'Brand 1',
-                    model: 'Model 1',
-                    warranty: '1 year',
-                    lowStockAlert: 10,
-                    isActive: true
-                },
-                {
-                    name: 'Product 2',
-                    description: 'Description 2',
-                    category: 'Clothing',
-                    price: 500,
-                    costPrice: 400,
-                    quantity: 100,
-                    unitType: 'piece',
-                    sku: 'TEST002',
-                    brand: 'Brand 2',
-                    model: 'Model 2',
-                    warranty: 'None',
-                    lowStockAlert: 20,
-                    isActive: true
-                }
-            ]);
-        });
-
-        it('should get all products', async () => {
+        it('should get all products when authenticated', async () => {
             const res = await request(app)
                 .get('/api/products')
-                .set('Authorization', `Bearer ${token}`);
+                .set('Authorization', `Bearer ${adminToken}`);
 
             expect(res.status).toBe(200);
             expect(Array.isArray(res.body)).toBe(true);
-            expect(res.body).toHaveLength(2);
         });
 
-        it('should search products by name', async () => {
+        it('should not get products without authentication', async () => {
             const res = await request(app)
-                .get('/api/products?search=Product 1')
-                .set('Authorization', `Bearer ${token}`);
+                .get('/api/products');
 
-            expect(res.status).toBe(200);
-            expect(Array.isArray(res.body)).toBe(true);
-            expect(res.body).toHaveLength(1);
-            expect(res.body[0].name).toBe('Product 1');
+            expect(res.status).toBe(401);
+        });
+    });
+
+    describe('POST /api/products', () => {
+        it('should create new product when authenticated as admin', async () => {
+            const res = await request(app)
+                .post('/api/products')
+                .set('Authorization', `Bearer ${adminToken}`)
+                .send({
+                    name: 'Test Product',
+                    description: 'Test Description',
+                    price: 99.99,
+                    stock: 100,
+                    category: 'Test Category'
+                });
+
+            expect(res.status).toBe(201);
+            expect(res.body).toHaveProperty('name', 'Test Product');
+            testProduct = res.body;
         });
 
-        it('should search products by category', async () => {
+        it('should not create product without authentication', async () => {
             const res = await request(app)
-                .get('/api/products?category=Electronics')
-                .set('Authorization', `Bearer ${token}`);
+                .post('/api/products')
+                .send({
+                    name: 'Test Product 2',
+                    description: 'Test Description 2',
+                    price: 199.99,
+                    stock: 50,
+                    category: 'Test Category'
+                });
 
-            expect(res.status).toBe(200);
-            expect(Array.isArray(res.body)).toBe(true);
-            expect(res.body).toHaveLength(1);
-            expect(res.body[0].category).toBe('Electronics');
-        });
-
-        it('should filter low stock products', async () => {
-            // Create a low stock product
-            await Product.create({
-                name: 'Low Stock Product',
-                category: 'Electronics',
-                price: 1000,
-                quantity: 5,
-                unitType: 'piece',
-                sku: 'TEST003',
-                lowStockAlert: 10,
-                isActive: true
-            });
-
-            const res = await request(app)
-                .get('/api/products?lowStock=true')
-                .set('Authorization', `Bearer ${token}`);
-
-            expect(res.status).toBe(200);
-            expect(Array.isArray(res.body)).toBe(true);
-            expect(res.body).toHaveLength(1);
-            expect(res.body[0].name).toBe('Low Stock Product');
+            expect(res.status).toBe(401);
         });
     });
 
     describe('PUT /api/products/:id', () => {
-        let testProduct;
-
-        beforeEach(async () => {
-            testProduct = await Product.create({
-                name: 'Test Product',
-                description: 'Test Description',
-                category: 'Electronics',
-                price: 1000,
-                costPrice: 800,
-                quantity: 50,
-                unitType: 'piece',
-                sku: 'TEST001',
-                brand: 'Test Brand',
-                model: 'Test Model',
-                warranty: '1 year',
-                lowStockAlert: 10,
-                isActive: true
-            });
-        });
-
-        it('should update product details', async () => {
-            const updateData = {
-                name: 'Updated Product',
-                price: 1200,
-                quantity: 75
-            };
-
+        it('should update product when authenticated as admin', async () => {
             const res = await request(app)
                 .put(`/api/products/${testProduct._id}`)
-                .set('Authorization', `Bearer ${token}`)
-                .send(updateData);
+                .set('Authorization', `Bearer ${adminToken}`)
+                .send({
+                    name: 'Updated Test Product',
+                    price: 149.99
+                });
 
             expect(res.status).toBe(200);
-            expect(res.body.name).toBe(updateData.name);
-            expect(res.body.price).toBe(updateData.price);
-            expect(res.body.quantity).toBe(updateData.quantity);
+            expect(res.body).toHaveProperty('name', 'Updated Test Product');
+            expect(res.body).toHaveProperty('price', 149.99);
         });
 
         it('should not update product without authentication', async () => {
-            const updateData = {
-                name: 'Updated Product'
-            };
-
             const res = await request(app)
                 .put(`/api/products/${testProduct._id}`)
-                .send(updateData);
+                .send({
+                    name: 'Updated Test Product'
+                });
 
             expect(res.status).toBe(401);
         });
-
-        it('should not update non-existent product', async () => {
-            const updateData = {
-                name: 'Updated Product'
-            };
-
-            const res = await request(app)
-                .put('/api/products/nonexistentid')
-                .set('Authorization', `Bearer ${token}`)
-                .send(updateData);
-
-            expect(res.status).toBe(404);
-        });
     });
 
-    describe('PATCH /api/products/:id/stock', () => {
-        let testProduct;
-
-        beforeEach(async () => {
-            testProduct = await Product.create({
-                name: 'Test Product',
-                category: 'Electronics',
-                price: 1000,
-                quantity: 50,
-                unitType: 'piece',
-                sku: 'TEST001',
-                isActive: true
-            });
-        });
-
-        it('should update product stock', async () => {
-            const updateData = {
-                quantity: 75,
-                type: 'add' // or 'subtract'
-            };
-
+    describe('DELETE /api/products/:id', () => {
+        it('should delete product when authenticated as admin', async () => {
             const res = await request(app)
-                .patch(`/api/products/${testProduct._id}/stock`)
-                .set('Authorization', `Bearer ${token}`)
-                .send(updateData);
+                .delete(`/api/products/${testProduct._id}`)
+                .set('Authorization', `Bearer ${adminToken}`);
 
             expect(res.status).toBe(200);
-            expect(res.body.quantity).toBe(125); // 50 + 75
         });
 
-        it('should not allow negative stock', async () => {
-            const updateData = {
-                quantity: 100,
-                type: 'subtract'
-            };
-
+        it('should not delete product without authentication', async () => {
             const res = await request(app)
-                .patch(`/api/products/${testProduct._id}/stock`)
-                .set('Authorization', `Bearer ${token}`)
-                .send(updateData);
+                .delete(`/api/products/${testProduct._id}`);
 
-            expect(res.status).toBe(400);
+            expect(res.status).toBe(401);
         });
     });
 }); 

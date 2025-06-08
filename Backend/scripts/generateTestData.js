@@ -119,6 +119,15 @@ async function generateBills(count, customers, products, users) {
         throw new Error('Missing required references for bill generation');
     }
 
+    // Get all saved documents from the database
+    const savedCustomers = await Customer.find({});
+    const savedProducts = await Product.find({});
+    const savedUsers = await User.find({});
+
+    if (!savedCustomers.length || !savedProducts.length || !savedUsers.length) {
+        throw new Error('Failed to retrieve saved documents from database');
+    }
+
     for (let i = 0; i < count; i++) {
         try {
             // Generate 1-3 random items for each bill
@@ -126,16 +135,16 @@ async function generateBills(count, customers, products, users) {
             const items = [];
             let subtotal = 0;
 
-            // Select random customer and creator
-            const customer = getRandomItem(customers);
-            const creator = getRandomItem(users);
+            // Select random customer and creator from saved documents
+            const customer = getRandomItem(savedCustomers);
+            const creator = getRandomItem(savedUsers);
 
             if (!customer || !creator) {
                 throw new Error('Failed to get valid customer or creator');
             }
 
             for (let j = 0; j < numItems; j++) {
-                const product = getRandomItem(products);
+                const product = getRandomItem(savedProducts);
                 if (!product) {
                     throw new Error('Failed to get valid product');
                 }
@@ -176,12 +185,6 @@ async function generateBills(count, customers, products, users) {
                 notes: `Test bill ${i + 1}`
             };
 
-            // Validate the bill object
-            if (!bill.customer || !bill.createdBy || !bill.items.length || !bill.items[0].product) {
-                console.error('Invalid bill object:', bill);
-                throw new Error('Generated invalid bill object');
-            }
-
             bills.push(bill);
         } catch (error) {
             console.error(`Error generating bill ${i + 1}:`, error);
@@ -207,22 +210,46 @@ async function generateExpenses(count, users) {
     startDate.setMonth(startDate.getMonth() - 1);
     const endDate = new Date();
 
+    // Get all saved users from the database
+    const savedUsers = await User.find({});
+    if (!savedUsers.length) {
+        throw new Error('Failed to retrieve saved users from database');
+    }
+
+    // Valid expense categories and payment methods from the model
+    const expenseCategories = ['Rent', 'Utilities', 'Salary', 'Marketing', 'Maintenance', 'Office Supplies', 'Travel', 'Misc'];
+    const expensePaymentMethods = ['cash', 'card', 'bank', 'upi'];
+
     for (let i = 0; i < count; i++) {
+        const creator = getRandomItem(savedUsers);
+        if (!creator) {
+            throw new Error('Failed to get valid creator for expense');
+        }
+
         expenses.push({
-            description: `Test Expense ${i + 1}`,
+            title: `Test Expense ${i + 1}`,
+            category: getRandomItem(expenseCategories),
             amount: getRandomNumber(100, 10000),
-            category: getRandomItem(categories),
+            paymentMethod: getRandomItem(expensePaymentMethods),
             date: getRandomDate(startDate, endDate),
-            paymentMethod: getRandomItem(paymentMethods),
-            reference: `REF${String(i + 1).padStart(3, '0')}`,
-            notes: `Notes for expense ${i + 1}`,
-            createdBy: getRandomItem(users)._id
+            description: `Description for expense ${i + 1}`,
+            createdBy: creator._id,
+            isRecurring: Math.random() > 0.8, // 20% chance of being recurring
+            recurringDetails: Math.random() > 0.8 ? {
+                frequency: getRandomItem(['Daily', 'Weekly', 'Monthly', 'Yearly']),
+                nextDueDate: new Date(endDate.getTime() + 30 * 24 * 60 * 60 * 1000) // 30 days from now
+            } : undefined
         });
     }
 
-    await Expense.insertMany(expenses);
-    console.log('Expenses generated successfully');
-    return expenses;
+    try {
+        await Expense.insertMany(expenses);
+        console.log('Expenses generated successfully');
+        return expenses;
+    } catch (error) {
+        console.error('Error inserting expenses:', error);
+        throw error;
+    }
 }
 
 // Main function to generate all test data
