@@ -2,6 +2,8 @@ import express from 'express';
 import { auth, isSuperAdmin } from '../Middlewares/auth.js';
 import {
   getSalesReport,
+  getInventoryReport,
+  getCustomerReport,
   getExpenseReport,
   getProfitLossReport,
   getCustomerLedgerReport,
@@ -11,22 +13,31 @@ import {
 
 const router = express.Router();
 
-// Sales Report
-router.get('/sales', auth, getSalesReport);
+// All routes are protected
+router.use(auth);
 
-// Expense Report
-router.get('/expenses', auth, getExpenseReport);
+// Get sales report
+router.get('/sales', getSalesReport);
 
-// Profit & Loss Report
-router.get('/profit-loss', auth, getProfitLossReport);
+// Get inventory report
+router.get('/inventory', getInventoryReport);
 
-// Customer Ledger Report
-router.get('/customer-ledgers', auth, getCustomerLedgerReport);
+// Get customer report
+router.get('/customers', getCustomerReport);
 
-// Outstanding Balances Report
-router.get('/outstanding-balances', auth, getOutstandingBalancesReport);
+// Get expense report
+router.get('/expenses', getExpenseReport);
 
-// Top Products Report
-router.get('/top-products', auth, getTopProductsReport);
+// Get profit & loss report
+router.get('/profit-loss', getProfitLossReport);
+
+// Get customer ledger report
+router.get('/customer-ledgers', getCustomerLedgerReport);
+
+// Get outstanding balances report
+router.get('/outstanding-balances', getOutstandingBalancesReport);
+
+// Get top products report
+router.get('/top-products', getTopProductsReport);
 
 export default router; 

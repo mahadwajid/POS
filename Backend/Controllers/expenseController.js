@@ -26,17 +26,12 @@ export const getExpenses = async (req, res) => {
     }
 
     const expenses = await Expense.find(query)
-      .populate('createdBy', 'username')
+      .populate('createdBy', 'name')
       .sort(sortOption);
 
-    // Calculate total
-    const total = expenses.reduce((sum, expense) => sum + expense.amount, 0);
-
-    res.json({
-      expenses,
-      total
-    });
+    res.json(expenses);
   } catch (error) {
+    console.error('Get expenses error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -47,7 +42,7 @@ export const getExpenses = async (req, res) => {
 export const getExpenseById = async (req, res) => {
   try {
     const expense = await Expense.findById(req.params.id)
-      .populate('createdBy', 'username');
+      .populate('createdBy', 'name');
 
     if (!expense) {
       return res.status(404).json({ message: 'Expense not found' });
@@ -55,55 +50,57 @@ export const getExpenseById = async (req, res) => {
 
     res.json(expense);
   } catch (error) {
+    console.error('Get expense error:', error);
+    if (error.name === 'CastError') {
+      return res.status(400).json({ message: 'Invalid expense ID' });
+    }
     res.status(500).json({ message: 'Server error' });
   }
 };
 
 // @desc    Create new expense
 // @route   POST /api/expenses
-// @access  Private/Admin
+// @access  Private
 export const createExpense = async (req, res) => {
   try {
     const {
-      title,
+      description,
       category,
       amount,
       paymentMethod,
       date,
-      description,
-      receiptUrl
+      reference
     } = req.body;
 
     const expense = await Expense.create({
-      title,
+      description,
       category,
       amount,
       paymentMethod,
       date: date || new Date(),
-      description,
-      receiptUrl,
+      reference,
       createdBy: req.user._id
     });
 
     res.status(201).json(expense);
   } catch (error) {
+    console.error('Create expense error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
 
 // @desc    Update expense
 // @route   PUT /api/expenses/:id
-// @access  Private/Admin
+// @access  Private
 export const updateExpense = async (req, res) => {
   try {
     const {
-      title,
+      description,
       category,
       amount,
       paymentMethod,
       date,
-      description,
-      receiptUrl
+      reference
     } = req.body;
 
     const expense = await Expense.findById(req.params.id);
@@ -112,25 +109,25 @@ export const updateExpense = async (req, res) => {
     }
 
     Object.assign(expense, {
-      title,
+      description,
       category,
       amount,
       paymentMethod,
       date: date || expense.date,
-      description,
-      receiptUrl
+      reference
     });
 
     await expense.save();
     res.json(expense);
   } catch (error) {
+    console.error('Update expense error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
 
 // @desc    Delete expense
 // @route   DELETE /api/expenses/:id
-// @access  Private/Admin
+// @access  Private
 export const deleteExpense = async (req, res) => {
   try {
     const expense = await Expense.findById(req.params.id);
@@ -141,6 +138,7 @@ export const deleteExpense = async (req, res) => {
     await expense.deleteOne();
     res.json({ message: 'Expense deleted successfully' });
   } catch (error) {
+    console.error('Delete expense error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -200,21 +198,47 @@ export const getExpenseReport = async (req, res) => {
 // @access  Private
 export const getExpenseSummary = async (req, res) => {
   try {
-    const { startDate, endDate } = req.query;
-    const query = {};
+    const { period = 'day', groupBy } = req.query;
+    const startDate = new Date();
+    
+    if (period === 'month') {
+      startDate.setMonth(startDate.getMonth() - 1);
+    } else {
+      startDate.setHours(0, 0, 0, 0);
+    }
 
-    if (startDate && endDate) {
-      query.date = {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate)
-      };
+    const query = {
+      createdAt: { $gte: startDate }
+    };
+
+    if (groupBy === 'category') {
+      const summary = await Expense.aggregate([
+        { $match: query },
+        {
+          $group: {
+            _id: '$category',
+            total: { $sum: '$amount' },
+            count: { $sum: 1 }
+          }
+        },
+        {
+          $project: {
+            category: '$_id',
+            total: 1,
+            count: 1,
+            _id: 0
+          }
+        }
+      ]);
+
+      return res.json(summary);
     }
 
     const summary = await Expense.aggregate([
       { $match: query },
       {
         $group: {
-          _id: '$category',
+          _id: null,
           total: { $sum: '$amount' },
           count: { $sum: 1 }
         }
@@ -222,15 +246,15 @@ export const getExpenseSummary = async (req, res) => {
       {
         $project: {
           _id: 0,
-          category: '$_id',
           total: 1,
           count: 1
         }
       }
     ]);
 
-    res.json(summary);
+    res.json(summary[0] || { total: 0, count: 0 });
   } catch (error) {
+    console.error('Get expense summary error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };

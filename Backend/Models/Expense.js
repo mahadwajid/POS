@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 
 const expenseSchema = new mongoose.Schema({
-  title: {
+  description: {
     type: String,
     required: true,
     trim: true
@@ -19,19 +19,16 @@ const expenseSchema = new mongoose.Schema({
   paymentMethod: {
     type: String,
     required: true,
-    enum: ['cash', 'card', 'bank', 'upi']
+    enum: ['Cash', 'Card', 'Bank Transfer', 'UPI']
   },
   date: {
     type: Date,
     required: true,
     default: Date.now
   },
-  description: {
+  reference: {
     type: String,
     trim: true
-  },
-  receiptUrl: {
-    type: String
   },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
@@ -55,6 +52,7 @@ const expenseSchema = new mongoose.Schema({
 
 // Index for faster searches
 expenseSchema.index({ date: -1, category: 1 });
+expenseSchema.index({ createdBy: 1, date: -1 });
 
 // Prevent OverwriteModelError
 const Expense = mongoose.models.Expense || mongoose.model('Expense', expenseSchema);

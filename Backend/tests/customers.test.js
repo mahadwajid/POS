@@ -1,46 +1,50 @@
 import request from 'supertest';
 import app from '../Server.js';
-import User from '../Models/User.js';
 import Customer from '../Models/Customer.js';
 
 describe('Customer Management Tests', () => {
-    let adminToken;
+    const newCustomer = {
+        name: 'Test Customer',
+        phone: '1234567890',
+        email: 'test@customer.com',
+        address: {
+            street: '123 Test St',
+            city: 'Test City',
+            state: 'Test State',
+            pincode: '123456'
+        },
+        creditLimit: 1000,
+        totalDue: 0,
+        totalPurchases: 0,
+        totalPayments: 0,
+        notes: 'Test customer notes',
+        isActive: true
+    };
+
     let testCustomer;
 
-    beforeAll(async () => {
-        // Create admin user
-        const admin = new User({
-            name: 'Admin User',
-            email: 'admin@example.com',
-            password: 'Admin@123',
-            role: 'super_admin'
-        });
-        await admin.save();
-
-        // Login to get token
-        const loginRes = await request(app)
-            .post('/api/auth/login')
-            .send({
-                email: 'admin@example.com',
-                password: 'Admin@123'
-            });
-
-        adminToken = loginRes.body.token;
+    beforeEach(async () => {
+        // Clear test data before each test
+        await Customer.deleteOne({ phone: newCustomer.phone });
+        
+        // Create test customer
+        const res = await request(app)
+            .post('/api/customers')
+            .set('Authorization', `Bearer ${global.adminToken}`)
+            .send(newCustomer);
+        testCustomer = res.body;
     });
 
     afterAll(async () => {
-        // Clean up test data
-        await User.deleteOne({ email: 'admin@example.com' });
-        if (testCustomer) {
-            await Customer.deleteOne({ _id: testCustomer._id });
-        }
+        // Clean up test customer
+        await Customer.deleteOne({ phone: newCustomer.phone });
     });
 
     describe('GET /api/customers', () => {
         it('should get all customers when authenticated', async () => {
             const res = await request(app)
                 .get('/api/customers')
-                .set('Authorization', `Bearer ${adminToken}`);
+                .set('Authorization', `Bearer ${global.adminToken}`);
 
             expect(res.status).toBe(200);
             expect(Array.isArray(res.body)).toBe(true);
@@ -56,30 +60,25 @@ describe('Customer Management Tests', () => {
 
     describe('POST /api/customers', () => {
         it('should create new customer when authenticated', async () => {
+            const anotherCustomer = {
+                ...newCustomer,
+                phone: '9876543210',
+                email: 'another@customer.com'
+            };
+
             const res = await request(app)
                 .post('/api/customers')
-                .set('Authorization', `Bearer ${adminToken}`)
-                .send({
-                    name: 'Test Customer',
-                    email: 'test@customer.com',
-                    phone: '1234567890',
-                    address: '123 Test St'
-                });
+                .set('Authorization', `Bearer ${global.adminToken}`)
+                .send(anotherCustomer);
 
             expect(res.status).toBe(201);
-            expect(res.body).toHaveProperty('name', 'Test Customer');
-            testCustomer = res.body;
+            expect(res.body).toHaveProperty('phone', '9876543210');
         });
 
         it('should not create customer without authentication', async () => {
             const res = await request(app)
                 .post('/api/customers')
-                .send({
-                    name: 'Test Customer 2',
-                    email: 'test2@customer.com',
-                    phone: '0987654321',
-                    address: '456 Test Ave'
-                });
+                .send(newCustomer);
 
             expect(res.status).toBe(401);
         });
@@ -87,17 +86,26 @@ describe('Customer Management Tests', () => {
 
     describe('PUT /api/customers/:id', () => {
         it('should update customer when authenticated', async () => {
+            const updateData = {
+                name: 'Updated Test Customer',
+                phone: '9876543210',
+                address: {
+                    street: '456 Updated St',
+                    city: 'Updated City',
+                    state: 'Updated State',
+                    pincode: '654321'
+                }
+            };
+
             const res = await request(app)
                 .put(`/api/customers/${testCustomer._id}`)
-                .set('Authorization', `Bearer ${adminToken}`)
-                .send({
-                    name: 'Updated Test Customer',
-                    phone: '9876543210'
-                });
+                .set('Authorization', `Bearer ${global.adminToken}`)
+                .send(updateData);
 
             expect(res.status).toBe(200);
-            expect(res.body).toHaveProperty('name', 'Updated Test Customer');
-            expect(res.body).toHaveProperty('phone', '9876543210');
+            expect(res.body).toHaveProperty('name', updateData.name);
+            expect(res.body).toHaveProperty('phone', updateData.phone);
+            expect(res.body.address).toHaveProperty('street', updateData.address.street);
         });
 
         it('should not update customer without authentication', async () => {
@@ -115,7 +123,7 @@ describe('Customer Management Tests', () => {
         it('should delete customer when authenticated', async () => {
             const res = await request(app)
                 .delete(`/api/customers/${testCustomer._id}`)
-                .set('Authorization', `Bearer ${adminToken}`);
+                .set('Authorization', `Bearer ${global.adminToken}`);
 
             expect(res.status).toBe(200);
         });

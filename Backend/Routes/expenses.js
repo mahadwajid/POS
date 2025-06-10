@@ -1,12 +1,12 @@
 import express from 'express';
-import { auth, isSuperAdmin } from '../Middlewares/auth.js';
+import { auth } from '../Middlewares/auth.js';
 import {
   getExpenses,
   getExpenseById,
   createExpense,
   updateExpense,
   deleteExpense,
-  getExpenseReport
+  getExpenseSummary
 } from '../Controllers/expenseController.js';
 
 const router = express.Router();
@@ -14,19 +14,19 @@ const router = express.Router();
 // Get all expenses
 router.get('/', auth, getExpenses);
 
-// Get expense by ID
+// Get expense summary
+router.get('/summary', auth, getExpenseSummary);
+
+// Get expense by id
 router.get('/:id', auth, getExpenseById);
 
-// Create new expense (Super Admin only)
-router.post('/', auth, isSuperAdmin, createExpense);
+// Create new expense
+router.post('/', auth, createExpense);
 
-// Update expense (Super Admin only)
-router.put('/:id', auth, isSuperAdmin, updateExpense);
+// Update expense
+router.put('/:id', auth, updateExpense);
 
-// Delete expense (Super Admin only)
-router.delete('/:id', auth, isSuperAdmin, deleteExpense);
-
-// Get expense report
-router.get('/report', auth, getExpenseReport);
+// Delete expense
+router.delete('/:id', auth, deleteExpense);
 
 export default router; 

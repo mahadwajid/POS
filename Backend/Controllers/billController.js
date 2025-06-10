@@ -1,44 +1,25 @@
 import { Product } from '../Models/index.js';
 import { Bill } from '../Models/index.js';
 import { Customer } from '../Models/index.js';
+import mongoose from 'mongoose';
 
 // @desc    Get all bills
 // @route   GET /api/bills
 // @access  Private
 export const getBills = async (req, res) => {
   try {
-    const { startDate, endDate, customer, status, sort } = req.query;
-    const query = {};
-
-    if (startDate && endDate) {
-      query.date = {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate)
-      };
-    }
-
-    if (customer) {
-      query.customer = customer;
-    }
-
-    if (status) {
-      query.status = status;
-    }
-
-    let sortOption = { date: -1 };
-    if (sort) {
-      const [field, order] = sort.split(':');
-      sortOption = { [field]: order === 'desc' ? -1 : 1 };
-    }
-
-    const bills = await Bill.find(query)
+    const bills = await Bill.find()
       .populate('customer', 'name phone')
       .populate('items.product', 'name sku price')
-      .sort(sortOption);
+      .sort({ createdAt: -1 });
 
     res.json(bills);
   } catch (error) {
-    res.status(500).json({ message: 'Server error' });
+    console.error('Bills fetch error:', error);
+    res.status(500).json({ 
+      message: 'Server error',
+      details: error.message 
+    });
   }
 };
 
@@ -47,7 +28,14 @@ export const getBills = async (req, res) => {
 // @access  Private
 export const getBillById = async (req, res) => {
   try {
-    const bill = await Bill.findById(req.params.id)
+    const { id } = req.params;
+
+    // Validate ObjectId
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: 'Invalid bill ID format' });
+    }
+
+    const bill = await Bill.findById(id)
       .populate('customer', 'name phone')
       .populate('items.product', 'name sku price');
 
@@ -57,7 +45,11 @@ export const getBillById = async (req, res) => {
 
     res.json(bill);
   } catch (error) {
-    res.status(500).json({ message: 'Server error' });
+    console.error('Bill fetch error:', error);
+    res.status(500).json({ 
+      message: 'Server error',
+      details: error.message 
+    });
   }
 };
 
@@ -70,33 +62,115 @@ export const createBill = async (req, res) => {
       customer,
       items,
       subtotal,
-      tax,
+      tax = 0,
+      discount = 0,
       total,
-      paidAmount,
       paymentMethod,
-      notes
+      paymentStatus,
+      notes,
+      status,
+      type,
+      reference,
+      date,
+      dueDate,
+      shippingAddress,
+      billingAddress,
+      shippingMethod,
+      shippingCost,
+      handlingCost,
+      insuranceCost,
+      currency,
+      exchangeRate,
+      attachments,
+      tags,
+      metadata
     } = req.body;
+
+    // Validate required fields
+    if (!customer || !items || !items.length || !subtotal || !total || !paymentMethod) {
+      return res.status(400).json({ 
+        message: 'Missing required fields',
+        required: ['customer', 'items', 'subtotal', 'total', 'paymentMethod']
+      });
+    }
+
+    // Validate items
+    for (const item of items) {
+      if (!item.product || !item.quantity || !item.price) {
+        return res.status(400).json({ 
+          message: 'Invalid item data',
+          required: ['product', 'quantity', 'price']
+        });
+      }
+    }
 
     // Generate bill number
     const lastBill = await Bill.findOne().sort({ billNumber: -1 });
-    const billNumber = lastBill ? lastBill.billNumber + 1 : 1001;
+    const billNumber = lastBill ? `BILL-${parseInt(lastBill.billNumber.split('-')[1]) + 1}` : 'BILL-1001';
 
-    // Calculate due amount
+    // Calculate payment amounts
+    const paidAmount = paymentStatus === 'paid' ? total : 0;
     const dueAmount = total - paidAmount;
+
+    // Normalize payment method and status
+    const normalizedPaymentMethod = paymentMethod.toLowerCase();
+    const normalizedStatus = status ? status.toLowerCase() : 'pending';
+
+    // Validate payment method
+    const validPaymentMethods = ['cash', 'card', 'bank_transfer', 'upi', 'wallet', 'cheque', 'credit'];
+    if (!validPaymentMethods.includes(normalizedPaymentMethod)) {
+      return res.status(400).json({ 
+        message: 'Invalid payment method',
+        validMethods: validPaymentMethods
+      });
+    }
+
+    // Validate status
+    const validStatuses = ['pending', 'processing', 'completed', 'cancelled', 'refunded', 'paid'];
+    if (!validStatuses.includes(normalizedStatus)) {
+      return res.status(400).json({ 
+        message: 'Invalid status',
+        validStatuses: validStatuses
+      });
+    }
 
     // Create bill
     const bill = await Bill.create({
       billNumber,
       customer,
-      items,
+      items: items.map(item => ({
+        product: item.product,
+        quantity: item.quantity,
+        price: item.price,
+        discount: item.discount || 0,
+        tax: item.tax || 0,
+        total: item.total || (item.price * item.quantity)
+      })),
       subtotal,
       tax,
+      discount,
       total,
       paidAmount,
       dueAmount,
-      paymentMethod,
+      paymentMethod: normalizedPaymentMethod,
+      paymentStatus: paymentStatus || 'pending',
       notes,
-      status: dueAmount > 0 ? 'Partially Paid' : 'Paid',
+      status: normalizedStatus,
+      type: type || 'sale',
+      reference: reference || `BILL-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      date: date || new Date(),
+      dueDate,
+      shippingAddress,
+      billingAddress,
+      shippingMethod,
+      shippingCost: shippingCost || 0,
+      handlingCost: handlingCost || 0,
+      insuranceCost: insuranceCost || 0,
+      currency: currency || 'USD',
+      exchangeRate: exchangeRate || 1,
+      attachments,
+      tags,
+      metadata,
       createdBy: req.user._id
     });
 
@@ -108,9 +182,9 @@ export const createBill = async (req, res) => {
     }
 
     // Update customer's total due
-    if (dueAmount > 0) {
+    if (paymentStatus === 'pending' || paymentStatus === 'partial') {
       await Customer.findByIdAndUpdate(customer, {
-        $inc: { totalDue: dueAmount }
+        $inc: { totalDue: total }
       });
     }
 
@@ -316,16 +390,17 @@ export const getCategorySummary = async (req, res) => {
 // @access  Private/Admin
 export const deleteBill = async (req, res) => {
   try {
-    const bill = await Bill.findById(req.params.id);
-    if (!bill) {
-      return res.status(404).json({ message: 'Bill not found' });
+    const { id } = req.params;
+
+    // Validate ObjectId
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: 'Invalid bill ID format' });
     }
 
-    // Check if bill is already paid
-    if (bill.status === 'paid') {
-      return res.status(400).json({ 
-        message: 'Cannot delete a paid bill'
-      });
+    const bill = await Bill.findByIdAndDelete(id);
+
+    if (!bill) {
+      return res.status(404).json({ message: 'Bill not found' });
     }
 
     // Restore product quantities
@@ -336,28 +411,50 @@ export const deleteBill = async (req, res) => {
     }
 
     // Update customer's total due
-    if (bill.dueAmount > 0) {
+    if (bill.paymentStatus === 'pending' || bill.paymentStatus === 'partial') {
       await Customer.findByIdAndUpdate(bill.customer, {
-        $inc: { totalDue: -bill.dueAmount }
+        $inc: { totalDue: -bill.total }
       });
     }
 
-    // Delete the bill
-    await Bill.findByIdAndDelete(bill._id);
-
-    res.json({ 
-      message: 'Bill deleted successfully',
-      bill: {
-        id: bill._id,
-        billNumber: bill.billNumber,
-        total: bill.total
-      }
-    });
+    res.json({ message: 'Bill deleted successfully' });
   } catch (error) {
     console.error('Bill deletion error:', error);
     res.status(500).json({ 
       message: 'Server error',
-      details: error.message
+      details: error.message 
+    });
+  }
+};
+
+export const updateBill = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updateData = req.body;
+
+    // Validate ObjectId
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: 'Invalid bill ID format' });
+    }
+
+    // Find and update bill
+    const bill = await Bill.findByIdAndUpdate(
+      id,
+      { $set: updateData },
+      { new: true, runValidators: true }
+    ).populate('customer', 'name phone')
+     .populate('items.product', 'name sku price');
+
+    if (!bill) {
+      return res.status(404).json({ message: 'Bill not found' });
+    }
+
+    res.json(bill);
+  } catch (error) {
+    console.error('Bill update error:', error);
+    res.status(500).json({ 
+      message: 'Server error',
+      details: error.message 
     });
   }
 }; 

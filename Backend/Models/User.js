@@ -18,14 +18,65 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  phone: {
+    type: String,
+    trim: true,
+    default: ''
+  },
   role: {
     type: String,
-    enum: ['super_admin', 'sub_admin'],
-    default: 'sub_admin'
+    enum: ['super_admin', 'sub_admin', 'user'],
+    default: 'user'
   },
   isActive: {
     type: Boolean,
     default: true
+  },
+  address: {
+    street: String,
+    city: String,
+    state: String,
+    pincode: String
+  },
+  permissions: {
+    type: [String],
+    default: []
+  },
+  department: {
+    type: String,
+    trim: true,
+    default: ''
+  },
+  position: {
+    type: String,
+    trim: true,
+    default: ''
+  },
+  employeeId: {
+    type: String,
+    trim: true,
+    default: ''
+  },
+  joiningDate: {
+    type: Date
+  },
+  salary: {
+    type: Number,
+    default: 0
+  },
+  emergencyContact: {
+    name: String,
+    phone: String,
+    relationship: String
+  },
+  documents: {
+    type: [String],
+    default: []
+  },
+  notes: {
+    type: String,
+    trim: true,
+    default: ''
   },
   lastLogin: {
     type: Date

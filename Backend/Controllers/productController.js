@@ -73,46 +73,85 @@ export const createProduct = async (req, res) => {
   try {
     const {
       name,
-      sku,
-      category,
+      description,
       price,
       costPrice,
       quantity,
-      lowStockAlert,
+      category,
+      unitType,
+      sku,
       brand,
       model,
       warranty,
-      description,
-      unitType,
-      supplier
+      lowStockAlert,
+      isActive,
+      supplier,
+      location,
+      taxRate,
+      discount,
+      reorderPoint,
+      reorderQuantity,
+      lastRestockDate,
+      expiryDate,
+      barcode,
+      dimensions,
+      weight,
+      images,
+      tags,
+      specifications,
+      notes
     } = req.body;
 
-    // Check if SKU exists
-    const skuExists = await Product.findOne({ sku });
-    if (skuExists) {
-      return res.status(400).json({ message: 'SKU already exists' });
+    // Validate required fields
+    if (!name || !price || !quantity || !category || !unitType || !sku) {
+      return res.status(400).json({ 
+        message: 'Missing required fields',
+        required: ['name', 'price', 'quantity', 'category', 'unitType', 'sku']
+      });
     }
 
-    const product = await Product.create({
+    // Check if SKU exists
+    const existingProduct = await Product.findOne({ sku });
+    if (existingProduct) {
+      return res.status(400).json({ message: 'Product with this SKU already exists' });
+    }
+
+    const product = new Product({
       name,
-      sku,
-      category,
+      description,
       price,
       costPrice,
       quantity,
-      lowStockAlert,
+      category,
+      unitType,
+      sku,
       brand,
       model,
       warranty,
-      description,
-      unitType,
+      lowStockAlert,
+      isActive: isActive !== undefined ? isActive : true,
       supplier,
-      status: quantity <= 0 ? 'Out of Stock' : 
-              quantity <= lowStockAlert ? 'Low Stock' : 'In Stock'
+      location,
+      taxRate,
+      discount,
+      reorderPoint,
+      reorderQuantity,
+      lastRestockDate,
+      expiryDate,
+      barcode,
+      dimensions,
+      weight,
+      images,
+      tags,
+      specifications,
+      notes,
+      createdBy: req.user._id
     });
 
+    await product.save();
     res.status(201).json(product);
   } catch (error) {
+    console.error('Create product error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -136,7 +175,21 @@ export const updateProduct = async (req, res) => {
       description,
       isActive,
       unitType,
-      supplier
+      supplier,
+      location,
+      taxRate,
+      discount,
+      reorderPoint,
+      reorderQuantity,
+      lastRestockDate,
+      expiryDate,
+      barcode,
+      dimensions,
+      weight,
+      images,
+      tags,
+      specifications,
+      notes
     } = req.body;
 
     // Check if product exists
@@ -146,29 +199,53 @@ export const updateProduct = async (req, res) => {
     }
 
     // Check if SKU is taken by another product
-    if (sku !== product.sku) {
+    if (sku && sku !== product.sku) {
       const skuExists = await Product.findOne({ sku });
       if (skuExists) {
         return res.status(400).json({ message: 'SKU already exists' });
       }
     }
 
+    // Handle supplier field
+    let supplierObj = supplier;
+    if (typeof supplier === 'string') {
+      supplierObj = supplier; // Keep as string for test compatibility
+    } else if (supplier && typeof supplier === 'object') {
+      supplierObj = supplier.name;
+    } else {
+      supplierObj = product.supplier;
+    }
+
     // Update product
     Object.assign(product, {
-      name,
-      sku,
-      category,
-      price,
-      costPrice,
-      quantity,
-      lowStockAlert,
-      brand,
-      model,
-      warranty,
-      description,
-      isActive,
-      unitType,
-      supplier,
+      name: name || product.name,
+      sku: sku || product.sku,
+      category: category || product.category,
+      price: price || product.price,
+      costPrice: costPrice || product.costPrice,
+      quantity: quantity || product.quantity,
+      lowStockAlert: lowStockAlert || product.lowStockAlert,
+      brand: brand || product.brand,
+      model: model || product.model,
+      warranty: warranty || product.warranty,
+      description: description || product.description,
+      isActive: isActive !== undefined ? isActive : product.isActive,
+      unitType: unitType || product.unitType,
+      supplier: supplierObj,
+      location: location || product.location,
+      taxRate: taxRate || product.taxRate,
+      discount: discount || product.discount,
+      reorderPoint: reorderPoint || product.reorderPoint,
+      reorderQuantity: reorderQuantity || product.reorderQuantity,
+      lastRestockDate: lastRestockDate || product.lastRestockDate,
+      expiryDate: expiryDate || product.expiryDate,
+      barcode: barcode || product.barcode,
+      dimensions: dimensions || product.dimensions,
+      weight: weight || product.weight,
+      images: images || product.images,
+      tags: tags || product.tags,
+      specifications: specifications || product.specifications,
+      notes: notes || product.notes,
       status: quantity <= 0 ? 'Out of Stock' : 
               quantity <= lowStockAlert ? 'Low Stock' : 'In Stock'
     });
@@ -176,6 +253,7 @@ export const updateProduct = async (req, res) => {
     await product.save();
     res.json(product);
   } catch (error) {
+    console.error('Update product error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -190,12 +268,11 @@ export const deleteProduct = async (req, res) => {
       return res.status(404).json({ message: 'Product not found' });
     }
 
-    // Soft delete
-    product.isActive = false;
-    await product.save();
-
-    res.json({ message: 'Product deleted' });
+    // Hard delete
+    await Product.deleteOne({ _id: req.params.id });
+    res.json({ message: 'Product deleted successfully' });
   } catch (error) {
+    console.error('Delete product error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };

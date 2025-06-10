@@ -2,6 +2,7 @@ import { Product } from '../Models/index.js';
 import { Bill } from '../Models/index.js';
 import { Expense } from '../Models/index.js';
 import Customer from '../Models/Customer.js';
+import { Customer as CustomerModel } from '../Models/index.js';
 
 // Helper function to get date range
 const getDateRange = (startDate, endDate) => {
@@ -29,45 +30,50 @@ const getDateRange = (startDate, endDate) => {
 export const getSalesReport = async (req, res) => {
   try {
     const { startDate, endDate, customer } = req.query;
-    console.log('Query params:', { startDate, endDate, customer });
-    
-    const query = getDateRange(startDate, endDate);
-    if (customer) query.customer = customer;
+    const query = {};
 
-    console.log('MongoDB query:', JSON.stringify(query, null, 2));
+    if (startDate && endDate) {
+      query.createdAt = {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate)
+      };
+    }
 
-    // Get sales data
-    const sales = await Bill.find(query)
-      .populate('customer', 'name phone')
-      .sort({ createdAt: -1 });
+    if (customer) {
+      query.customer = customer;
+    }
 
-    console.log('Found sales:', sales.length);
+    const bills = await Bill.find(query)
+      .populate('customer', 'name')
+      .populate('items.product', 'name');
 
-    // Calculate totals
-    const totals = sales.reduce((acc, sale) => ({
-      total: acc.total + (sale.total || 0),
-      paid: acc.paid + (sale.paidAmount || 0),
-      due: acc.due + (sale.dueAmount || 0)
-    }), { total: 0, paid: 0, due: 0 });
+    // Group sales by date
+    const dailySales = bills.reduce((acc, bill) => {
+      const date = bill.createdAt.toISOString().split('T')[0];
+      if (!acc[date]) {
+        acc[date] = {
+          date,
+          total: 0,
+          count: 0
+        };
+      }
+      acc[date].total += bill.total;
+      acc[date].count += 1;
+      return acc;
+    }, {});
 
-    // Get daily sales trend
-    const dailySales = await Bill.aggregate([
-      { $match: query },
-      {
-        $group: {
-          _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
-          amount: { $sum: '$total' },
-          count: { $sum: 1 }
-        }
-      },
-      { $sort: { _id: 1 } }
-    ]);
+    const report = {
+      dailySales: Object.values(dailySales),
+      sales: bills,
+      totals: {
+        total: bills.reduce((sum, bill) => sum + bill.total, 0),
+        paid: bills.reduce((sum, bill) => sum + bill.paidAmount, 0),
+        due: bills.reduce((sum, bill) => sum + bill.dueAmount, 0),
+        count: bills.length
+      }
+    };
 
-    res.json({
-      sales,
-      totals,
-      dailySales
-    });
+    res.json(report);
   } catch (error) {
     console.error('Sales report error:', error);
     res.status(500).json({ message: 'Server error' });
@@ -79,39 +85,25 @@ export const getSalesReport = async (req, res) => {
 // @access  Private
 export const getInventoryReport = async (req, res) => {
   try {
-    // Get inventory by category
-    const inventoryByCategory = await Product.aggregate([
-      { $match: { isActive: true } },
-      {
-        $group: {
-          _id: '$category',
-          totalItems: { $sum: 1 },
-          totalQuantity: { $sum: '$quantity' },
-          totalValue: { $sum: { $multiply: ['$price', '$quantity'] } }
-        }
-      },
-      {
-        $project: {
-          _id: 0,
-          category: '$_id',
-          totalItems: 1,
-          totalQuantity: 1,
-          totalValue: 1
-        }
-      }
-    ]);
+    const products = await Product.find();
+    
+    const report = {
+      totalProducts: products.length,
+      totalValue: products.reduce((sum, product) => sum + (product.price * product.quantity), 0),
+      lowStockItems: products.filter(product => product.quantity <= product.minStock).length,
+      products: products.map(product => ({
+        name: product.name,
+        sku: product.sku,
+        quantity: product.quantity,
+        price: product.price,
+        value: product.price * product.quantity,
+        category: product.category
+      }))
+    };
 
-    // Get low stock items
-    const lowStockItems = await Product.find({
-      isActive: true,
-      $expr: { $lte: ['$quantity', '$lowStockAlert'] }
-    }).select('name sku category quantity lowStockAlert price');
-
-    res.json({
-      inventoryByCategory,
-      lowStockItems
-    });
+    res.json(report);
   } catch (error) {
+    console.error('Inventory report error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -238,7 +230,7 @@ export const getCustomerLedgerReport = async (req, res) => {
     const { customer } = req.query;
     const query = customer ? { _id: customer } : {};
 
-    const customers = await Customer.find(query).select('name phone totalDue');
+    const customers = await CustomerModel.find(query).select('name phone totalDue');
     const ledgers = await Promise.all(
       customers.map(async (customer) => {
         const bills = await Bill.find({ customer: customer._id })
@@ -274,7 +266,7 @@ export const getCustomerLedgerReport = async (req, res) => {
 // @access  Private
 export const getOutstandingBalancesReport = async (req, res) => {
   try {
-    const customers = await Customer.find({ totalDue: { $gt: 0 } })
+    const customers = await CustomerModel.find({ totalDue: { $gt: 0 } })
       .select('name phone totalDue')
       .sort({ totalDue: -1 });
 
@@ -364,6 +356,33 @@ export const getTopProductsReport = async (req, res) => {
     res.json(topProducts);
   } catch (error) {
     console.error('Top products report error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// @desc    Get customer report
+// @route   GET /api/reports/customers
+// @access  Private
+export const getCustomerReport = async (req, res) => {
+  try {
+    const customers = await Customer.find();
+    
+    const report = {
+      totalCustomers: customers.length,
+      totalDues: customers.reduce((sum, customer) => sum + customer.totalDue, 0),
+      customersWithDues: customers.filter(customer => customer.totalDue > 0).length,
+      customers: customers.map(customer => ({
+        name: customer.name,
+        phone: customer.phone,
+        totalDue: customer.totalDue,
+        totalPurchases: customer.totalPurchases,
+        lastPurchase: customer.lastPurchase
+      }))
+    };
+
+    res.json(report);
+  } catch (error) {
+    console.error('Customer report error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 }; 

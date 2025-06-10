@@ -52,40 +52,50 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// Create new user (Super Admin only)
-router.post('/users', auth, isSuperAdmin, async (req, res) => {
-  try {
-    const { username, password, role, fullName, email } = req.body;
-    
-    const existingUser = await User.findOne({ 
-      $or: [{ username }, { email }] 
-    });
-
-    if (existingUser) {
-      return res.status(400).json({ message: 'Username or email already exists' });
-    }
-
-    const user = new User({
-      username,
-      password,
-      role,
-      fullName,
-      email
-    });
-
-    await user.save();
-    res.status(201).json({ message: 'User created successfully' });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
 // Get current user profile
 router.get('/profile', auth, async (req, res) => {
   try {
     const user = await User.findById(req.user._id).select('-password');
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
     res.json(user);
   } catch (error) {
+    console.error('Profile error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Create new user (Super Admin only)
+router.post('/users', auth, isSuperAdmin, async (req, res) => {
+  try {
+    const { name, email, password, role } = req.body;
+    
+    const existingUser = await User.findOne({ email: email.toLowerCase() });
+    if (existingUser) {
+      return res.status(400).json({ message: 'Email already exists' });
+    }
+
+    const user = new User({
+      name,
+      email: email.toLowerCase(),
+      password,
+      role: role || 'user'
+    });
+
+    await user.save();
+    
+    res.status(201).json({
+      message: 'User created successfully',
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role
+      }
+    });
+  } catch (error) {
+    console.error('Create user error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -93,22 +103,38 @@ router.get('/profile', auth, async (req, res) => {
 // Update user profile
 router.put('/profile', auth, async (req, res) => {
   try {
-    const { fullName, email } = req.body;
+    const { name, email } = req.body;
     const user = await User.findById(req.user._id);
 
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
     if (email && email !== user.email) {
-      const existingUser = await User.findOne({ email });
+      const existingUser = await User.findOne({ email: email.toLowerCase() });
       if (existingUser) {
         return res.status(400).json({ message: 'Email already in use' });
       }
+      user.email = email.toLowerCase();
     }
 
-    user.fullName = fullName || user.fullName;
-    user.email = email || user.email;
+    if (name) {
+      user.name = name;
+    }
+
     await user.save();
 
-    res.json({ message: 'Profile updated successfully' });
+    res.json({
+      message: 'Profile updated successfully',
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role
+      }
+    });
   } catch (error) {
+    console.error('Update profile error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -119,7 +145,12 @@ router.put('/change-password', auth, async (req, res) => {
     const { currentPassword, newPassword } = req.body;
     const user = await User.findById(req.user._id);
 
-    if (!(await user.comparePassword(currentPassword))) {
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const isPasswordValid = await user.comparePassword(currentPassword);
+    if (!isPasswordValid) {
       return res.status(401).json({ message: 'Current password is incorrect' });
     }
 
@@ -128,6 +159,7 @@ router.put('/change-password', auth, async (req, res) => {
 
     res.json({ message: 'Password changed successfully' });
   } catch (error) {
+    console.error('Change password error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });

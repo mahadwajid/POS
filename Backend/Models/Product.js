@@ -6,14 +6,15 @@ const productSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  sku: {
+    type: String,
+    required: true,
+    unique: true,
+    trim: true
+  },
   description: {
     type: String,
     trim: true
-  },
-  category: {
-    type: String,
-    required: true,
-    enum: ['Lighting', 'Switches', 'Cables', 'Tools', 'Accessories', 'Other']
   },
   price: {
     type: Number,
@@ -28,28 +29,13 @@ const productSchema = new mongoose.Schema({
   quantity: {
     type: Number,
     required: true,
-    min: 0
+    min: 0,
+    default: 0
   },
-  unitType: {
+  category: {
     type: String,
     required: true,
-    enum: ['piece', 'meter', 'box', 'set', 'kg'],
-    default: 'piece'
-  },
-  supplier: {
-    name: {
-      type: String,
-      trim: true
-    },
-    contact: {
-      type: String,
-      trim: true
-    }
-  },
-  sku: {
-    type: String,
-    required: true,
-    unique: true
+    trim: true
   },
   brand: {
     type: String,
@@ -59,9 +45,38 @@ const productSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
-  warranty: {
-    type: Number, // in months
-    default: 0
+  supplier: {
+    type: mongoose.Schema.Types.Mixed,
+    default: { name: '', contact: '' }
+  },
+  location: {
+    type: String,
+    trim: true
+  },
+  taxRate: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  discount: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  reorderPoint: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  unitType: {
+    type: String,
+    enum: ['piece', 'kg', 'g', 'l', 'ml', 'box', 'pack'],
+    default: 'piece'
+  },
+  status: {
+    type: String,
+    enum: ['In Stock', 'Low Stock', 'Out of Stock', 'Discontinued'],
+    default: 'In Stock'
   },
   isActive: {
     type: Boolean,
@@ -69,28 +84,37 @@ const productSchema = new mongoose.Schema({
   },
   lowStockAlert: {
     type: Number,
-    default: 5
+    default: 10
   },
-  status: {
+  warranty: {
+    type: Number,
+    default: 0
+  },
+  images: [String],
+  barcode: {
     type: String,
-    enum: ['In Stock', 'Low Stock', 'Out of Stock'],
-    default: 'In Stock'
+    trim: true
+  },
+  tags: [String],
+  notes: String,
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
   }
 }, {
   timestamps: true
 });
 
-// Virtual for stock status
-productSchema.virtual('stockStatus').get(function() {
-  if (this.quantity <= 0) return 'Out of Stock';
-  if (this.quantity <= this.lowStockAlert) return 'Low Stock';
-  return 'In Stock';
-});
+// Add indexes
+productSchema.index({ name: 1 });
+productSchema.index({ sku: 1 });
+productSchema.index({ category: 1 });
+productSchema.index({ brand: 1 });
+productSchema.index({ status: 1 });
+productSchema.index({ isActive: 1 });
+productSchema.index({ createdBy: 1 });
 
-// Index for faster searches
-productSchema.index({ name: 'text', sku: 'text', brand: 'text', category: 'text' });
-
-// Prevent OverwriteModelError
 const Product = mongoose.models.Product || mongoose.model('Product', productSchema);
 
 export default Product; 
