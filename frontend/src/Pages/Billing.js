@@ -37,6 +37,7 @@ import {
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../Services/api';
+import BillTemplate from '../Components/BillTemplate';
 
 const Billing = () => {
   const location = useLocation();
@@ -53,6 +54,19 @@ const Billing = () => {
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [paidAmount, setPaidAmount] = useState(0);
   const [notes, setNotes] = useState('');
+  const [billData, setBillData] = useState({
+    billNumber: '',
+    date: new Date(),
+    customer: null,
+    items: [],
+    subtotal: 0,
+    tax: 0,
+    discount: 0,
+    total: 0,
+    paidAmount: 0,
+    dueAmount: 0,
+    notes: ''
+  });
 
   useEffect(() => {
     const fetchData = async () => {
@@ -80,6 +94,29 @@ const Billing = () => {
     };
     fetchData();
   }, [location.search]);
+
+  useEffect(() => {
+    const { subTotal, discountAmount, taxAmount, grandTotal, balanceAmount } = calculateTotals();
+    setBillData(prev => ({
+      ...prev,
+      billNumber: `BILL-${Date.now()}`,
+      customer: selectedCustomer,
+      items: items.map(item => ({
+        product: item.productId,
+        name: item.name,
+        quantity: item.quantity,
+        price: item.price,
+        total: item.total
+      })),
+      subtotal: subTotal,
+      tax: taxAmount,
+      discount: discount,
+      total: grandTotal,
+      paidAmount: paidAmount,
+      dueAmount: balanceAmount,
+      notes: notes
+    }));
+  }, [selectedCustomer, items, discount, taxRate, paidAmount, notes]);
 
   const handleAddItem = (product) => {
     const existingItem = items.find(item => item.productId === product._id);
@@ -170,7 +207,64 @@ const Billing = () => {
   };
 
   const handlePrint = () => {
-    window.print();
+    console.log('Print button clicked');
+    if (!selectedCustomer) {
+      setError('Please select a customer first');
+      return;
+    }
+    if (items.length === 0) {
+      setError('Please add at least one item to the bill');
+      return;
+    }
+  
+    // Calculate totals using the existing function
+    const { subTotal, discountAmount, taxAmount, grandTotal, balanceAmount } = calculateTotals();
+  
+    // Prepare bill data with all required fields
+    const billData = {
+      billNumber: `BILL-${Date.now()}`,
+      date: new Date().toISOString(),
+      customer: {
+        name: selectedCustomer.name,
+        phone: selectedCustomer.phone || 'N/A',
+        address: selectedCustomer.address || 'N/A'
+      },
+      items: items.map(item => ({
+        name: item.name,
+        quantity: item.quantity,
+        price: item.price,
+        total: item.price * item.quantity
+      })),
+      subtotal: subTotal,
+      discount: discountAmount,
+      tax: taxAmount,
+      total: grandTotal,
+      paidAmount: paidAmount,
+      dueAmount: balanceAmount,
+      paymentMethod: paymentMethod.charAt(0).toUpperCase() + paymentMethod.slice(1),
+      notes: notes
+    };
+  
+    // Prepare company info (you should customize this)
+    const companyInfo = {
+      name: user.companyName || 'Your Company Name',
+      address: user.companyAddress || 'Your Company Address',
+      phone: user.companyPhone || 'Your Company Phone',
+      email: user.companyEmail || 'Your Company Email',
+      gstin: user.companyGSTIN || 'Your GSTIN Number',
+      logo: user.companyLogo || '/logo.png'
+    };
+  
+    // Store data in localStorage
+    localStorage.setItem('printBillData', JSON.stringify({ 
+      billData, 
+      companyInfo 
+    }));
+    
+    console.log('Saved printBillData:', { billData, companyInfo });
+    
+    // Navigate to print page
+    navigate('/print-bill');
   };
 
   if (loading) {

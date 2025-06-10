@@ -1,0 +1,52 @@
+@media print {
+  body {
+    margin: 0;
+    padding: 0;
+    background: #fff;
+  }
+
+  @page {
+    size: A4;
+    margin: 0;
+  }
+
+  /* Hide all other elements when printing */
+  body > *:not(.bill-template) {
+    display: none !important;
+  }
+
+  /* Ensure the bill template takes full page */
+  .bill-template {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 20mm;
+    box-sizing: border-box;
+    background: #fff;
+  }
+
+  /* Ensure watermark is visible in print */
+  .bill-template::before {
+    opacity: 0.05 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Ensure all text is black for better printing */
+  .bill-template * {
+    color: #000 !important;
+  }
+
+  /* Ensure table borders are visible */
+  .MuiTableCell-root {
+    border-color: #000 !important;
+  }
+
+  /* Hide print button when printing */
+  .print-button {
+    display: none !important;
+  }
+} 
