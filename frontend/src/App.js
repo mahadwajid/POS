@@ -1,5 +1,5 @@
-import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import MainLayout from './Components/MainLayout';
@@ -13,6 +13,7 @@ import Reports from './Pages/Reports';
 import Users from './Pages/Users';
 import Ledger from './Pages/Ledger';
 import PrintBill from './Components/PrintBill';
+import LoadingScreen from './Components/LoadingScreen';
 
 // Create theme
 const theme = createTheme({
@@ -67,98 +68,123 @@ const theme = createTheme({
   },
 });
 
-// Protected Route component
 const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated, loading } = useAuth();
-
-  if (loading) {
-    return <div>Loading...</div>;
-  }
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" />;
-  }
-
-  return <MainLayout>{children}</MainLayout>;
+  const { isAuthenticated } = useAuth();
+  return isAuthenticated ? children : <Navigate to="/login" />;
 };
 
-const App = () => {
+const AppContent = () => {
+  const [loading, setLoading] = useState(false);
+  const location = useLocation();
+
+  useEffect(() => {
+    setLoading(true);
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [location.pathname]);
+
+  if (loading) {
+    return <LoadingScreen />;
+  }
+
+  return (
+    <MainLayout>
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <Navigate to="/dashboard" replace />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/products"
+          element={
+            <ProtectedRoute>
+              <Products />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/customers"
+          element={
+            <ProtectedRoute>
+              <Customers />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/billing/:customerId?"
+          element={
+            <ProtectedRoute>
+              <Billing />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/ledger/:customerId?"
+          element={
+            <ProtectedRoute>
+              <Ledger />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/users"
+          element={
+            <ProtectedRoute>
+              <Users />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/expenses"
+          element={
+            <ProtectedRoute>
+              <Expenses />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/reports"
+          element={
+            <ProtectedRoute>
+              <Reports />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="/print-bill" element={<PrintBill />} />
+      </Routes>
+    </MainLayout>
+  );
+};
+
+function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-    
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/products"
-            element={
-              <ProtectedRoute>
-                <Products />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/customers"
-            element={
-              <ProtectedRoute>
-                <Customers />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/billing/:customerId?"
-            element={
-              <ProtectedRoute>
-                <Billing />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/expenses"
-            element={
-              <ProtectedRoute>
-                <Expenses />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/reports"
-            element={
-              <ProtectedRoute>
-                <Reports />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/users"
-            element={
-              <ProtectedRoute>
-                <Users />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/ledger/:customerId?"
-            element={
-              <ProtectedRoute>
-                <Ledger />
-              </ProtectedRoute>
-            }
-          />
-          <Route path="/print-bill" element={<PrintBill />} />
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        </Routes>
-     
+      <AuthProvider>
+      
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/*" element={<AppContent />} />
+          </Routes>
+       
+      </AuthProvider>
     </ThemeProvider>
   );
-};
+}
 
 export default App;

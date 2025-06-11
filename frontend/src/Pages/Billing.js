@@ -25,14 +25,26 @@ import {
   FormControl,
   InputLabel,
   Select,
-  MenuItem
+  MenuItem,
+  useTheme,
+  useMediaQuery,
+  Stack,
+  Card,
+  CardContent,
+  Fade,
+  Tooltip
 } from '@mui/material';
 import {
   Add as AddIcon,
   Remove as RemoveIcon,
   Print as PrintIcon,
   Save as SaveIcon,
-  Delete as DeleteIcon
+  Delete as DeleteIcon,
+  Receipt as ReceiptIcon,
+  Person as PersonIcon,
+  ShoppingCart as ShoppingCartIcon,
+  Payment as PaymentIcon,
+  Description as DescriptionIcon
 } from '@mui/icons-material';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -67,6 +79,10 @@ const Billing = () => {
     dueAmount: 0,
     notes: ''
   });
+
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isTablet = useMediaQuery(theme.breakpoints.down('md'));
 
   useEffect(() => {
     const fetchData = async () => {
@@ -295,14 +311,32 @@ const Billing = () => {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4">Create New Bill</Typography>
-        <Box>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
+        <Typography variant="h4" sx={{ 
+          fontWeight: 'bold',
+          background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+          backgroundClip: 'text',
+          WebkitBackgroundClip: 'text',
+          color: 'transparent'
+        }}>
+          Create New Bill
+        </Typography>
+        <Stack direction="row" spacing={2}>
           <Button
             variant="outlined"
             startIcon={<PrintIcon />}
             onClick={handlePrint}
-            sx={{ mr: 1 }}
+            sx={{
+              borderRadius: 2,
+              textTransform: 'none',
+              px: 3,
+              borderColor: theme.palette.primary.main,
+              color: theme.palette.primary.main,
+              '&:hover': {
+                borderColor: theme.palette.primary.dark,
+                backgroundColor: `${theme.palette.primary.main}15`
+              }
+            }}
           >
             Print
           </Button>
@@ -310,21 +344,52 @@ const Billing = () => {
             variant="contained"
             startIcon={<SaveIcon />}
             onClick={handleSave}
+            sx={{
+              borderRadius: 2,
+              textTransform: 'none',
+              px: 3,
+              background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+              '&:hover': {
+                background: `linear-gradient(45deg, ${theme.palette.primary.dark}, ${theme.palette.secondary.dark})`,
+              }
+            }}
           >
             Save Bill
           </Button>
-        </Box>
-      </Box>
+        </Stack>
+      </Stack>
 
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
+        <Alert 
+          severity="error" 
+          sx={{ 
+            mb: 2,
+            borderRadius: 2,
+            '& .MuiAlert-icon': {
+              color: theme.palette.error.main
+            }
+          }}
+        >
           {error}
         </Alert>
       )}
 
       <Grid container spacing={3}>
         <Grid item xs={12} md={8}>
-          <Paper sx={{ p: 2, mb: 2 }}>
+          <Paper 
+            elevation={0}
+            sx={{ 
+              p: 3, 
+              mb: 3,
+              borderRadius: 2,
+              background: `linear-gradient(45deg, ${theme.palette.background.paper} 0%, ${theme.palette.background.default} 100%)`,
+              border: `1px solid ${theme.palette.divider}`
+            }}
+          >
+            <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
+              <PersonIcon color="primary" />
+              <Typography variant="h6">Customer Information</Typography>
+            </Stack>
             <Autocomplete
               options={customers}
               getOptionLabel={(option) => `${option.name} (${option.phone})`}
@@ -336,12 +401,26 @@ const Billing = () => {
                   label="Select Customer"
                   required
                   fullWidth
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
                 />
               )}
             />
           </Paper>
 
-          <Paper sx={{ p: 2, mb: 2 }}>
+          <Paper 
+            elevation={0}
+            sx={{ 
+              p: 3, 
+              mb: 3,
+              borderRadius: 2,
+              background: `linear-gradient(45deg, ${theme.palette.background.paper} 0%, ${theme.palette.background.default} 100%)`,
+              border: `1px solid ${theme.palette.divider}`
+            }}
+          >
+            <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
+              <ShoppingCartIcon color="primary" />
+              <Typography variant="h6">Add Products</Typography>
+            </Stack>
             <Autocomplete
               options={products.filter(p => p.isActive)}
               getOptionLabel={(option) => `${option.name} (Rs. ${option.price})`}
@@ -351,25 +430,41 @@ const Billing = () => {
                   {...params}
                   label="Add Product"
                   fullWidth
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
                 />
               )}
             />
           </Paper>
 
-          <TableContainer component={Paper}>
+          <TableContainer 
+            component={Paper}
+            elevation={0}
+            sx={{ 
+              borderRadius: 2,
+              border: `1px solid ${theme.palette.divider}`,
+              overflow: 'hidden'
+            }}
+          >
             <Table>
               <TableHead>
-                <TableRow>
-                  <TableCell>Product</TableCell>
-                  <TableCell align="right">Price</TableCell>
-                  <TableCell align="center">Quantity</TableCell>
-                  <TableCell align="right">Total</TableCell>
-                  <TableCell align="center">Actions</TableCell>
+                <TableRow sx={{ backgroundColor: theme.palette.background.default }}>
+                  <TableCell sx={{ fontWeight: 'bold' }}>Product</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 'bold' }}>Price</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 'bold' }}>Quantity</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 'bold' }}>Total</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 'bold' }}>Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {items.map((item) => (
-                  <TableRow key={item.productId}>
+                  <TableRow 
+                    key={item.productId}
+                    sx={{
+                      '&:hover': {
+                        backgroundColor: theme.palette.action.hover
+                      }
+                    }}
+                  >
                     <TableCell>{item.name}</TableCell>
                     <TableCell align="right">Rs. {item.price.toFixed(2)}</TableCell>
                     <TableCell align="center">
@@ -377,26 +472,42 @@ const Billing = () => {
                         <IconButton
                           size="small"
                           onClick={() => handleQuantityChange(item.productId, -1)}
+                          sx={{ 
+                            color: theme.palette.error.main,
+                            '&:hover': { backgroundColor: `${theme.palette.error.main}15` }
+                          }}
                         >
-                          <RemoveIcon />
+                          <RemoveIcon fontSize="small" />
                         </IconButton>
-                        <Typography sx={{ mx: 1 }}>{item.quantity}</Typography>
+                        <Typography sx={{ mx: 1, minWidth: '30px', textAlign: 'center' }}>
+                          {item.quantity}
+                        </Typography>
                         <IconButton
                           size="small"
                           onClick={() => handleQuantityChange(item.productId, 1)}
+                          sx={{ 
+                            color: theme.palette.success.main,
+                            '&:hover': { backgroundColor: `${theme.palette.success.main}15` }
+                          }}
                         >
-                          <AddIcon />
+                          <AddIcon fontSize="small" />
                         </IconButton>
                       </Box>
                     </TableCell>
                     <TableCell align="right">Rs. {item.total.toFixed(2)}</TableCell>
                     <TableCell align="center">
-                      <IconButton
-                        size="small"
-                        onClick={() => handleQuantityChange(item.productId, -item.quantity)}
-                      >
-                        <DeleteIcon />
-                      </IconButton>
+                      <Tooltip title="Remove Item" TransitionComponent={Fade}>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleQuantityChange(item.productId, -item.quantity)}
+                          sx={{ 
+                            color: theme.palette.error.main,
+                            '&:hover': { backgroundColor: `${theme.palette.error.main}15` }
+                          }}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -406,10 +517,20 @@ const Billing = () => {
         </Grid>
 
         <Grid item xs={12} md={4}>
-          <Paper sx={{ p: 2 }}>
-            <Typography variant="h6" gutterBottom>
-              Bill Summary
-            </Typography>
+          <Paper 
+            elevation={0}
+            sx={{ 
+              p: 3,
+              borderRadius: 2,
+              background: `linear-gradient(45deg, ${theme.palette.background.paper} 0%, ${theme.palette.background.default} 100%)`,
+              border: `1px solid ${theme.palette.divider}`
+            }}
+          >
+            <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
+              <ReceiptIcon color="primary" />
+              <Typography variant="h6">Bill Summary</Typography>
+            </Stack>
+
             <Grid container spacing={2}>
               <Grid item xs={12}>
                 <TextField
@@ -421,6 +542,7 @@ const Billing = () => {
                   InputProps={{
                     endAdornment: <InputAdornment position="end">%</InputAdornment>,
                   }}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
                 />
               </Grid>
               <Grid item xs={12}>
@@ -433,6 +555,7 @@ const Billing = () => {
                   InputProps={{
                     endAdornment: <InputAdornment position="end">%</InputAdornment>,
                   }}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
                 />
               </Grid>
               <Grid item xs={12}>
@@ -442,6 +565,7 @@ const Billing = () => {
                     value={paymentMethod}
                     onChange={(e) => setPaymentMethod(e.target.value)}
                     label="Payment Method"
+                    sx={{ borderRadius: 2 }}
                   >
                     <MenuItem value="cash">Cash</MenuItem>
                     <MenuItem value="card">Card</MenuItem>
@@ -463,6 +587,7 @@ const Billing = () => {
                   InputProps={{
                     startAdornment: <InputAdornment position="start">Rs.</InputAdornment>,
                   }}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
                 />
               </Grid>
               <Grid item xs={12}>
@@ -473,42 +598,51 @@ const Billing = () => {
                   rows={3}
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
                 />
               </Grid>
             </Grid>
 
-            <Divider sx={{ my: 2 }} />
+            <Divider sx={{ my: 3 }} />
 
-            <Box>
-              <Box display="flex" justifyContent="space-between" mb={1}>
-                <Typography>Subtotal:</Typography>
-                <Typography>Rs. {subTotal.toFixed(2)}</Typography>
-              </Box>
-              <Box display="flex" justifyContent="space-between" mb={1}>
-                <Typography>Discount:</Typography>
-                <Typography color="error">-Rs. {discountAmount.toFixed(2)}</Typography>
-              </Box>
-              <Box display="flex" justifyContent="space-between" mb={1}>
-                <Typography>Tax:</Typography>
-                <Typography>Rs. {taxAmount.toFixed(2)}</Typography>
-              </Box>
-              <Box display="flex" justifyContent="space-between" mb={1}>
-                <Typography variant="h6">Grand Total:</Typography>
-                <Typography variant="h6">Rs. {grandTotal.toFixed(2)}</Typography>
-              </Box>
-              <Box display="flex" justifyContent="space-between" mb={1}>
-                <Typography>Amount Paid:</Typography>
-                <Typography>Rs. {paidAmount.toFixed(2)}</Typography>
-              </Box>
-              <Box display="flex" justifyContent="space-between">
-                <Typography variant="h6">Balance Due:</Typography>
-                <Typography
-                  variant="h6"
-                  color={balanceAmount > 0 ? 'error' : 'success'}
-                >
-                  Rs. {balanceAmount.toFixed(2)}
-                </Typography>
-              </Box>
+            <Box sx={{ 
+              p: 2, 
+              borderRadius: 2,
+              backgroundColor: theme.palette.background.default
+            }}>
+              <Stack spacing={1.5}>
+                <Box display="flex" justifyContent="space-between">
+                  <Typography color="text.secondary">Subtotal:</Typography>
+                  <Typography>Rs. {subTotal.toFixed(2)}</Typography>
+                </Box>
+                <Box display="flex" justifyContent="space-between">
+                  <Typography color="text.secondary">Discount:</Typography>
+                  <Typography color="error">-Rs. {discountAmount.toFixed(2)}</Typography>
+                </Box>
+                <Box display="flex" justifyContent="space-between">
+                  <Typography color="text.secondary">Tax:</Typography>
+                  <Typography>Rs. {taxAmount.toFixed(2)}</Typography>
+                </Box>
+                <Divider />
+                <Box display="flex" justifyContent="space-between">
+                  <Typography variant="h6">Grand Total:</Typography>
+                  <Typography variant="h6">Rs. {grandTotal.toFixed(2)}</Typography>
+                </Box>
+                <Box display="flex" justifyContent="space-between">
+                  <Typography color="text.secondary">Amount Paid:</Typography>
+                  <Typography>Rs. {paidAmount.toFixed(2)}</Typography>
+                </Box>
+                <Divider />
+                <Box display="flex" justifyContent="space-between">
+                  <Typography variant="h6">Balance Due:</Typography>
+                  <Typography
+                    variant="h6"
+                    color={balanceAmount > 0 ? 'error' : 'success'}
+                  >
+                    Rs. {balanceAmount.toFixed(2)}
+                  </Typography>
+                </Box>
+              </Stack>
             </Box>
           </Paper>
         </Grid>

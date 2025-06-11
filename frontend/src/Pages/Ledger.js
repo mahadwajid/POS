@@ -25,14 +25,26 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  InputAdornment
+  InputAdornment,
+  useTheme,
+  useMediaQuery,
+  Stack,
+  Card,
+  CardContent,
+  Fade,
+  Tooltip,
+  IconButton
 } from '@mui/material';
 import {
   Search as SearchIcon,
   Payment as PaymentIcon,
   Receipt as ReceiptIcon,
   FilterList as FilterListIcon,
-  Print as PrintIcon
+  Print as PrintIcon,
+  AccountBalance as AccountBalanceIcon,
+  Person as PersonIcon,
+  CalendarToday as CalendarIcon,
+  AttachMoney as MoneyIcon
 } from '@mui/icons-material';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -58,6 +70,10 @@ const Ledger = () => {
     start: null,
     end: null
   });
+
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isTablet = useMediaQuery(theme.breakpoints.down('md'));
 
   useEffect(() => {
     const fetchCustomers = async () => {
@@ -166,15 +182,33 @@ const Ledger = () => {
 
   return (
     <Box p={3}>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4">Customer Ledger</Typography>
-        <Box>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
+        <Typography variant="h4" sx={{ 
+          fontWeight: 'bold',
+          background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+          backgroundClip: 'text',
+          WebkitBackgroundClip: 'text',
+          color: 'transparent'
+        }}>
+          Customer Ledger
+        </Typography>
+        <Stack direction="row" spacing={2}>
           <Button
             variant="outlined"
             startIcon={<PrintIcon />}
             onClick={handlePrint}
-            sx={{ mr: 1 }}
             disabled={!selectedCustomer}
+            sx={{
+              borderRadius: 2,
+              textTransform: 'none',
+              px: 3,
+              borderColor: theme.palette.primary.main,
+              color: theme.palette.primary.main,
+              '&:hover': {
+                borderColor: theme.palette.primary.dark,
+                backgroundColor: `${theme.palette.primary.main}15`
+              }
+            }}
           >
             Print
           </Button>
@@ -183,20 +217,51 @@ const Ledger = () => {
               variant="contained"
               startIcon={<PaymentIcon />}
               onClick={() => setPaymentDialogOpen(true)}
+              sx={{
+                borderRadius: 2,
+                textTransform: 'none',
+                px: 3,
+                background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                '&:hover': {
+                  background: `linear-gradient(45deg, ${theme.palette.primary.dark}, ${theme.palette.secondary.dark})`,
+                }
+              }}
             >
               Record Payment
             </Button>
           )}
-        </Box>
-      </Box>
+        </Stack>
+      </Stack>
 
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
+        <Alert 
+          severity="error" 
+          sx={{ 
+            mb: 2,
+            borderRadius: 2,
+            '& .MuiAlert-icon': {
+              color: theme.palette.error.main
+            }
+          }}
+        >
           {error}
         </Alert>
       )}
 
-      <Paper sx={{ p: 2, mb: 3 }}>
+      <Paper 
+        elevation={0}
+        sx={{ 
+          p: 3, 
+          mb: 3,
+          borderRadius: 2,
+          background: `linear-gradient(45deg, ${theme.palette.background.paper} 0%, ${theme.palette.background.default} 100%)`,
+          border: `1px solid ${theme.palette.divider}`
+        }}
+      >
+        <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
+          <PersonIcon color="primary" />
+          <Typography variant="h6">Customer Information</Typography>
+        </Stack>
         <Grid container spacing={2} alignItems="center">
           <Grid item xs={12} md={4}>
             <Autocomplete
@@ -210,6 +275,7 @@ const Ledger = () => {
                   label="Select Customer"
                   variant="outlined"
                   fullWidth
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
                 />
               )}
             />
@@ -223,6 +289,7 @@ const Ledger = () => {
                     value={filterType}
                     onChange={(e) => setFilterType(e.target.value)}
                     label="Transaction Type"
+                    sx={{ borderRadius: 2 }}
                   >
                     <MenuItem value="all">All Transactions</MenuItem>
                     <MenuItem value="sale">Sales</MenuItem>
@@ -242,6 +309,7 @@ const Ledger = () => {
                     start: e.target.value ? new Date(e.target.value) : null
                   }))}
                   InputLabelProps={{ shrink: true }}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
                 />
               </Grid>
               <Grid item xs={12} md={2}>
@@ -255,6 +323,7 @@ const Ledger = () => {
                     end: e.target.value ? new Date(e.target.value) : null
                   }))}
                   InputLabelProps={{ shrink: true }}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
                 />
               </Grid>
             </>
@@ -264,22 +333,39 @@ const Ledger = () => {
 
       {selectedCustomer && (
         <>
-          <Paper sx={{ p: 2, mb: 3 }}>
-            <Box display="flex" justifyContent="space-between" alignItems="center">
-              <Box>
-                <Typography variant="h6">
-                  {selectedCustomer.name}
-                </Typography>
-                <Typography variant="body2" color="textSecondary">
-                  {selectedCustomer.phone}
-                </Typography>
-              </Box>
-              <Box>
-                <Typography variant="h6" color={selectedCustomer.totalDue > 0 ? 'error' : 'success'}>
-                  Balance: Rs. {selectedCustomer.totalDue.toFixed(2)}
-                </Typography>
-              </Box>
-            </Box>
+          <Paper 
+            elevation={0}
+            sx={{ 
+              p: 3, 
+              mb: 3,
+              borderRadius: 2,
+              background: `linear-gradient(45deg, ${theme.palette.background.paper} 0%, ${theme.palette.background.default} 100%)`,
+              border: `1px solid ${theme.palette.divider}`
+            }}
+          >
+            <Grid container spacing={2} alignItems="center">
+              <Grid item xs={12} md={6}>
+                <Stack direction="row" alignItems="center" spacing={1}>
+                  <PersonIcon color="primary" />
+                  <Box>
+                    <Typography variant="h6">
+                      {selectedCustomer.name}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {selectedCustomer.phone}
+                    </Typography>
+                  </Box>
+                </Stack>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <Stack direction="row" alignItems="center" spacing={1} justifyContent={{ xs: 'flex-start', md: 'flex-end' }}>
+                  <MoneyIcon color="primary" />
+                  <Typography variant="h6" color={selectedCustomer.totalDue > 0 ? 'error' : 'success'}>
+                    Balance: Rs. {selectedCustomer.totalDue.toFixed(2)}
+                  </Typography>
+                </Stack>
+              </Grid>
+            </Grid>
           </Paper>
 
           {loading ? (
@@ -287,30 +373,47 @@ const Ledger = () => {
               <CircularProgress />
             </Box>
           ) : (
-            <TableContainer component={Paper}>
+            <TableContainer 
+              component={Paper}
+              elevation={0}
+              sx={{ 
+                borderRadius: 2,
+                border: `1px solid ${theme.palette.divider}`,
+                overflow: 'hidden'
+              }}
+            >
               <Table>
                 <TableHead>
-                  <TableRow>
-                    <TableCell>Date</TableCell>
-                    <TableCell>Type</TableCell>
-                    <TableCell>Reference</TableCell>
-                    <TableCell>Description</TableCell>
-                    <TableCell align="right">Amount</TableCell>
-                    <TableCell align="right">Balance</TableCell>
+                  <TableRow sx={{ backgroundColor: theme.palette.background.default }}>
+                    <TableCell sx={{ fontWeight: 'bold' }}>Date</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>Type</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>Reference</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>Description</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 'bold' }}>Amount</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 'bold' }}>Balance</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {transactions.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={6} align="center">
-                        No transactions found
+                        <Typography color="text.secondary" sx={{ py: 2 }}>
+                          No transactions found
+                        </Typography>
                       </TableCell>
                     </TableRow>
                   ) : (
                     transactions
                       .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                       .map((transaction) => (
-                        <TableRow key={transaction._id}>
+                        <TableRow 
+                          key={transaction._id}
+                          sx={{
+                            '&:hover': {
+                              backgroundColor: theme.palette.action.hover
+                            }
+                          }}
+                        >
                           <TableCell>
                             {new Date(transaction.date).toLocaleDateString()}
                           </TableCell>
@@ -319,6 +422,11 @@ const Ledger = () => {
                               label={transaction.type}
                               color={getTransactionTypeColor(transaction.type)}
                               size="small"
+                              sx={{ 
+                                borderRadius: 1,
+                                textTransform: 'capitalize',
+                                fontWeight: 'medium'
+                              }}
                             />
                           </TableCell>
                           <TableCell>
@@ -328,10 +436,20 @@ const Ledger = () => {
                             {transaction.description}
                           </TableCell>
                           <TableCell align="right">
-                            Rs. {transaction.amount?.toFixed(2) || '0.00'}
+                            <Typography 
+                              color={transaction.type === 'payment' ? 'success.main' : 'text.primary'}
+                              fontWeight="medium"
+                            >
+                              Rs. {transaction.amount?.toFixed(2) || '0.00'}
+                            </Typography>
                           </TableCell>
                           <TableCell align="right">
-                            Rs. {transaction.balance?.toFixed(2) || '0.00'}
+                            <Typography 
+                              color={transaction.balance > 0 ? 'error.main' : 'success.main'}
+                              fontWeight="medium"
+                            >
+                              Rs. {transaction.balance?.toFixed(2) || '0.00'}
+                            </Typography>
                           </TableCell>
                         </TableRow>
                       ))
@@ -347,6 +465,12 @@ const Ledger = () => {
                   page={page}
                   onPageChange={handleChangePage}
                   onRowsPerPageChange={handleChangeRowsPerPage}
+                  sx={{
+                    borderTop: `1px solid ${theme.palette.divider}`,
+                    '.MuiTablePagination-select': {
+                      borderRadius: 1
+                    }
+                  }}
                 />
               )}
             </TableContainer>
@@ -355,40 +479,53 @@ const Ledger = () => {
       )}
 
       {/* Payment Dialog */}
-      <Dialog open={paymentDialogOpen} onClose={() => setPaymentDialogOpen(false)}>
-        <DialogTitle>Record Payment</DialogTitle>
-        <DialogContent>
-          <Box sx={{ pt: 2 }}>
+      <Dialog 
+        open={paymentDialogOpen} 
+        onClose={() => setPaymentDialogOpen(false)}
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            minWidth: { xs: '90%', sm: 400 }
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+          color: 'white',
+          py: 2
+        }}>
+          Record Payment
+        </DialogTitle>
+        <DialogContent sx={{ pt: 3 }}>
+          <Stack spacing={2}>
             <TextField
               fullWidth
               label="Amount"
               type="number"
               value={paymentAmount}
               onChange={(e) => setPaymentAmount(e.target.value)}
-              sx={{ mb: 2 }}
               InputProps={{
                 startAdornment: <InputAdornment position="start">Rs.</InputAdornment>,
               }}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
             />
-            <TextField
-              fullWidth
-              select
-              label="Payment Method"
-              value={paymentMethod}
-              onChange={(e) => setPaymentMethod(e.target.value)}
-              SelectProps={{
-                native: true
-              }}
-              sx={{ mb: 2 }}
-            >
-              <option value="cash">Cash</option>
-              <option value="card">Card</option>
-              <option value="bank_transfer">Bank Transfer</option>
-              <option value="upi">UPI</option>
-              <option value="wallet">Wallet</option>
-              <option value="cheque">Cheque</option>
-              <option value="credit">Credit</option>
-            </TextField>
+            <FormControl fullWidth>
+              <InputLabel>Payment Method</InputLabel>
+              <Select
+                value={paymentMethod}
+                onChange={(e) => setPaymentMethod(e.target.value)}
+                label="Payment Method"
+                sx={{ borderRadius: 2 }}
+              >
+                <MenuItem value="cash">Cash</MenuItem>
+                <MenuItem value="card">Card</MenuItem>
+                <MenuItem value="bank_transfer">Bank Transfer</MenuItem>
+                <MenuItem value="upi">UPI</MenuItem>
+                <MenuItem value="wallet">Wallet</MenuItem>
+                <MenuItem value="cheque">Cheque</MenuItem>
+                <MenuItem value="credit">Credit</MenuItem>
+              </Select>
+            </FormControl>
             <TextField
               fullWidth
               label="Notes"
@@ -396,15 +533,34 @@ const Ledger = () => {
               rows={3}
               value={paymentNotes}
               onChange={(e) => setPaymentNotes(e.target.value)}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
             />
-          </Box>
+          </Stack>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setPaymentDialogOpen(false)}>Cancel</Button>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button 
+            onClick={() => setPaymentDialogOpen(false)}
+            sx={{ 
+              borderRadius: 2,
+              textTransform: 'none',
+              px: 3
+            }}
+          >
+            Cancel
+          </Button>
           <Button
             variant="contained"
             onClick={handlePaymentSubmit}
             disabled={!paymentAmount || parseFloat(paymentAmount) <= 0}
+            sx={{
+              borderRadius: 2,
+              textTransform: 'none',
+              px: 3,
+              background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+              '&:hover': {
+                background: `linear-gradient(45deg, ${theme.palette.primary.dark}, ${theme.palette.secondary.dark})`,
+              }
+            }}
           >
             Record Payment
           </Button>

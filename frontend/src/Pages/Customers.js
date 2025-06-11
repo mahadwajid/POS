@@ -24,7 +24,14 @@ import {
   InputAdornment,
   Tooltip,
   MenuItem,
-  Snackbar
+  Snackbar,
+  useTheme,
+  useMediaQuery,
+  Card,
+  CardContent,
+  Stack,
+  Fade,
+  Divider
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -33,7 +40,11 @@ import {
   Search as SearchIcon,
   Payment as PaymentIcon,
   History as HistoryIcon,
-  Receipt as ReceiptIcon
+  Receipt as ReceiptIcon,
+  People as PeopleIcon,
+  AccountBalance as AccountBalanceIcon,
+  AttachMoney as AttachMoneyIcon,
+  Warning as WarningIcon
 } from '@mui/icons-material';
 import { useFormik } from 'formik';
 import * as yup from 'yup';
@@ -67,6 +78,9 @@ const Customers = () => {
     notes: ''
   });
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isTablet = useMediaQuery(theme.breakpoints.down('md'));
 
   const formik = useFormik({
     initialValues: {
@@ -211,6 +225,44 @@ const Customers = () => {
     setPage(0);
   };
 
+  const StatCard = ({ title, value, icon, color }) => (
+    <Card 
+      elevation={0}
+      sx={{
+        height: '100%',
+        background: `linear-gradient(45deg, ${theme.palette.background.paper} 0%, ${theme.palette.background.default} 100%)`,
+        border: `1px solid ${theme.palette.divider}`,
+        borderRadius: 2,
+        transition: 'transform 0.2s, box-shadow 0.2s',
+        '&:hover': {
+          transform: 'translateY(-4px)',
+          boxShadow: theme.shadows[4]
+        }
+      }}
+    >
+      <CardContent>
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+          <Box
+            sx={{
+              backgroundColor: `${color}15`,
+              borderRadius: 1,
+              p: 1,
+              mr: 2
+            }}
+          >
+            {icon}
+          </Box>
+          <Typography variant="subtitle2" color="text.secondary">
+            {title}
+          </Typography>
+        </Box>
+        <Typography variant="h4" component="div" sx={{ fontWeight: 'bold' }}>
+          {value}
+        </Typography>
+      </CardContent>
+    </Card>
+  );
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="80vh">
@@ -221,27 +273,96 @@ const Customers = () => {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4">Customers</Typography>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
+        <Typography variant="h4" sx={{ 
+          fontWeight: 'bold',
+          background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+          backgroundClip: 'text',
+          WebkitBackgroundClip: 'text',
+          color: 'transparent'
+        }}>
+          Customers
+        </Typography>
         {user?.role === 'super_admin' && (
           <Button
             variant="contained"
-            color="primary"
             startIcon={<AddIcon />}
             onClick={() => handleOpen()}
+            sx={{
+              borderRadius: 2,
+              textTransform: 'none',
+              px: 3,
+              background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+              '&:hover': {
+                background: `linear-gradient(45deg, ${theme.palette.primary.dark}, ${theme.palette.secondary.dark})`,
+              }
+            }}
           >
             Add Customer
           </Button>
         )}
-      </Box>
+      </Stack>
 
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
+        <Alert 
+          severity="error" 
+          sx={{ 
+            mb: 2,
+            borderRadius: 2,
+            '& .MuiAlert-icon': {
+              color: theme.palette.error.main
+            }
+          }}
+        >
           {error}
         </Alert>
       )}
 
-      <Paper sx={{ mb: 2 }}>
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        <Grid item xs={12} sm={6} md={3}>
+          <StatCard
+            title="Total Customers"
+            value={customers.length}
+            icon={<PeopleIcon sx={{ color: theme.palette.primary.main }} />}
+            color={theme.palette.primary.main}
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <StatCard
+            title="Active Customers"
+            value={customers.filter(c => c.isActive).length}
+            icon={<AccountBalanceIcon sx={{ color: theme.palette.success.main }} />}
+            color={theme.palette.success.main}
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <StatCard
+            title="Total Due"
+            value={`Rs. ${customers.reduce((sum, c) => sum + (c.totalDue || 0), 0).toLocaleString()}`}
+            icon={<AttachMoneyIcon sx={{ color: theme.palette.warning.main }} />}
+            color={theme.palette.warning.main}
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <StatCard
+            title="Overdue"
+            value={customers.filter(c => c.totalDue > 0).length}
+            icon={<WarningIcon sx={{ color: theme.palette.error.main }} />}
+            color={theme.palette.error.main}
+          />
+        </Grid>
+      </Grid>
+
+      <Paper 
+        elevation={0}
+        sx={{ 
+          p: 3, 
+          mb: 3,
+          borderRadius: 2,
+          background: `linear-gradient(45deg, ${theme.palette.background.paper} 0%, ${theme.palette.background.default} 100%)`,
+          border: `1px solid ${theme.palette.divider}`
+        }}
+      >
         <TextField
           fullWidth
           variant="outlined"
@@ -251,31 +372,46 @@ const Customers = () => {
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
-                <SearchIcon />
+                <SearchIcon sx={{ color: 'text.secondary' }} />
               </InputAdornment>
             ),
+            sx: { borderRadius: 2 }
           }}
-          sx={{ p: 2 }}
         />
       </Paper>
 
-      <TableContainer component={Paper}>
+      <TableContainer 
+        component={Paper}
+        elevation={0}
+        sx={{ 
+          borderRadius: 2,
+          border: `1px solid ${theme.palette.divider}`,
+          overflow: 'hidden'
+        }}
+      >
         <Table>
           <TableHead>
-            <TableRow>
-              <TableCell>Name</TableCell>
-              <TableCell>Phone</TableCell>
-              <TableCell>Email</TableCell>
-              <TableCell>Total Due</TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell>Actions</TableCell>
+            <TableRow sx={{ backgroundColor: theme.palette.background.default }}>
+              <TableCell sx={{ fontWeight: 'bold' }}>Name</TableCell>
+              <TableCell sx={{ fontWeight: 'bold' }}>Phone</TableCell>
+              <TableCell sx={{ fontWeight: 'bold' }}>Email</TableCell>
+              <TableCell sx={{ fontWeight: 'bold' }}>Total Due</TableCell>
+              <TableCell sx={{ fontWeight: 'bold' }}>Status</TableCell>
+              <TableCell sx={{ fontWeight: 'bold' }}>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {customers
               .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
               .map((customer) => (
-                <TableRow key={customer._id}>
+                <TableRow 
+                  key={customer._id}
+                  sx={{
+                    '&:hover': {
+                      backgroundColor: theme.palette.action.hover
+                    }
+                  }}
+                >
                   <TableCell>{customer.name}</TableCell>
                   <TableCell>{customer.phone}</TableCell>
                   <TableCell>{customer.email}</TableCell>
@@ -292,55 +428,76 @@ const Customers = () => {
                       label={customer.isActive ? 'Active' : 'Inactive'}
                       color={customer.isActive ? 'success' : 'error'}
                       size="small"
+                      sx={{ fontWeight: 500 }}
                     />
                   </TableCell>
                   <TableCell>
-                    <Box display="flex" gap={1}>
-                      <Tooltip title="Edit Customer">
+                    <Stack direction="row" spacing={1}>
+                      <Tooltip title="Edit Customer" TransitionComponent={Fade}>
                         <IconButton
                           size="small"
                           onClick={() => handleOpen(customer)}
                           disabled={user?.role !== 'super_admin'}
+                          sx={{ 
+                            color: theme.palette.primary.main,
+                            '&:hover': { backgroundColor: `${theme.palette.primary.main}15` }
+                          }}
                         >
-                          <EditIcon />
+                          <EditIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
-                      <Tooltip title="Delete Customer">
+                      <Tooltip title="Delete Customer" TransitionComponent={Fade}>
                         <IconButton
                           size="small"
                           onClick={() => handleDelete(customer._id)}
                           disabled={user?.role !== 'super_admin'}
+                          sx={{ 
+                            color: theme.palette.error.main,
+                            '&:hover': { backgroundColor: `${theme.palette.error.main}15` }
+                          }}
                         >
-                          <DeleteIcon />
+                          <DeleteIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
-                      <Tooltip title="Record Payment">
+                      <Tooltip title="Record Payment" TransitionComponent={Fade}>
                         <IconButton
                           size="small"
                           onClick={() => handlePaymentOpen(customer)}
                           disabled={user?.role !== 'super_admin'}
+                          sx={{ 
+                            color: theme.palette.success.main,
+                            '&:hover': { backgroundColor: `${theme.palette.success.main}15` }
+                          }}
                         >
-                          <PaymentIcon />
+                          <PaymentIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
-                      <Tooltip title="View Ledger">
+                      <Tooltip title="View Ledger" TransitionComponent={Fade}>
                         <IconButton
                           size="small"
                           onClick={() => handleViewLedger(customer._id)}
+                          sx={{ 
+                            color: theme.palette.info.main,
+                            '&:hover': { backgroundColor: `${theme.palette.info.main}15` }
+                          }}
                         >
-                          <HistoryIcon />
+                          <HistoryIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
-                      <Tooltip title="Create Bill">
+                      <Tooltip title="Create Bill" TransitionComponent={Fade}>
                         <IconButton
                           size="small"
                           onClick={() => handleCreateBill(customer._id)}
                           disabled={user?.role !== 'super_admin'}
+                          sx={{ 
+                            color: theme.palette.warning.main,
+                            '&:hover': { backgroundColor: `${theme.palette.warning.main}15` }
+                          }}
                         >
-                          <ReceiptIcon />
+                          <ReceiptIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
-                    </Box>
+                    </Stack>
                   </TableCell>
                 </TableRow>
               ))}
@@ -358,13 +515,27 @@ const Customers = () => {
       </TableContainer>
 
       {/* Add/Edit Customer Dialog */}
-      <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
-        <DialogTitle>
+      <Dialog 
+        open={open} 
+        onClose={handleClose} 
+        maxWidth="md" 
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            background: `linear-gradient(45deg, ${theme.palette.background.paper} 0%, ${theme.palette.background.default} 100%)`,
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          borderBottom: `1px solid ${theme.palette.divider}`,
+          pb: 2
+        }}>
           {selectedCustomer ? 'Edit Customer' : 'Add New Customer'}
         </DialogTitle>
         <form onSubmit={formik.handleSubmit}>
-          <DialogContent>
-            <Grid container spacing={2}>
+          <DialogContent sx={{ mt: 2 }}>
+            <Grid container spacing={3}>
               <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
@@ -374,6 +545,7 @@ const Customers = () => {
                   onChange={formik.handleChange}
                   error={formik.touched.name && Boolean(formik.errors.name)}
                   helperText={formik.touched.name && formik.errors.name}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
@@ -385,6 +557,7 @@ const Customers = () => {
                   onChange={formik.handleChange}
                   error={formik.touched.phone && Boolean(formik.errors.phone)}
                   helperText={formik.touched.phone && formik.errors.phone}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
@@ -396,6 +569,7 @@ const Customers = () => {
                   onChange={formik.handleChange}
                   error={formik.touched.email && Boolean(formik.errors.email)}
                   helperText={formik.touched.email && formik.errors.email}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
                 />
               </Grid>
               <Grid item xs={12}>
@@ -405,6 +579,7 @@ const Customers = () => {
                   label="Street Address"
                   value={formik.values.address.street}
                   onChange={formik.handleChange}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
                 />
               </Grid>
               <Grid item xs={12} sm={4}>
@@ -414,6 +589,7 @@ const Customers = () => {
                   label="City"
                   value={formik.values.address.city}
                   onChange={formik.handleChange}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
                 />
               </Grid>
               <Grid item xs={12} sm={4}>
@@ -423,6 +599,7 @@ const Customers = () => {
                   label="State"
                   value={formik.values.address.state}
                   onChange={formik.handleChange}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
                 />
               </Grid>
               <Grid item xs={12} sm={4}>
@@ -432,6 +609,7 @@ const Customers = () => {
                   label="Pincode"
                   value={formik.values.address.pincode}
                   onChange={formik.handleChange}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
                 />
               </Grid>
               <Grid item xs={12}>
@@ -443,13 +621,35 @@ const Customers = () => {
                   rows={3}
                   value={formik.values.notes}
                   onChange={formik.handleChange}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
                 />
               </Grid>
             </Grid>
           </DialogContent>
-          <DialogActions>
-            <Button onClick={handleClose}>Cancel</Button>
-            <Button type="submit" variant="contained" color="primary">
+          <DialogActions sx={{ px: 3, py: 2, borderTop: `1px solid ${theme.palette.divider}` }}>
+            <Button 
+              onClick={handleClose}
+              sx={{ 
+                borderRadius: 2,
+                textTransform: 'none',
+                px: 3
+              }}
+            >
+              Cancel
+            </Button>
+            <Button 
+              type="submit" 
+              variant="contained"
+              sx={{ 
+                borderRadius: 2,
+                textTransform: 'none',
+                px: 3,
+                background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                '&:hover': {
+                  background: `linear-gradient(45deg, ${theme.palette.primary.dark}, ${theme.palette.secondary.dark})`,
+                }
+              }}
+            >
               {selectedCustomer ? 'Update' : 'Add'}
             </Button>
           </DialogActions>
@@ -457,9 +657,25 @@ const Customers = () => {
       </Dialog>
 
       {/* Payment Dialog */}
-      <Dialog open={paymentOpen} onClose={handlePaymentClose} maxWidth="sm" fullWidth>
-        <DialogTitle>Record Payment</DialogTitle>
-        <DialogContent>
+      <Dialog 
+        open={paymentOpen} 
+        onClose={handlePaymentClose} 
+        maxWidth="sm" 
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            background: `linear-gradient(45deg, ${theme.palette.background.paper} 0%, ${theme.palette.background.default} 100%)`,
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          borderBottom: `1px solid ${theme.palette.divider}`,
+          pb: 2
+        }}>
+          Record Payment
+        </DialogTitle>
+        <DialogContent sx={{ mt: 2 }}>
           {selectedCustomer && (
             <Box>
               <Typography variant="subtitle1" gutterBottom>
@@ -478,6 +694,7 @@ const Customers = () => {
                 InputProps={{
                   startAdornment: <InputAdornment position="start">Rs.</InputAdornment>,
                 }}
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
               />
               <TextField
                 fullWidth
@@ -486,6 +703,7 @@ const Customers = () => {
                 margin="normal"
                 value={paymentData.paymentMethod}
                 onChange={(e) => setPaymentData(prev => ({ ...prev, paymentMethod: e.target.value }))}
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
               >
                 <MenuItem value="cash">Cash</MenuItem>
                 <MenuItem value="card">Card</MenuItem>
@@ -503,17 +721,35 @@ const Customers = () => {
                 margin="normal"
                 value={paymentData.notes}
                 onChange={(e) => setPaymentData(prev => ({ ...prev, notes: e.target.value }))}
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
               />
             </Box>
           )}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handlePaymentClose}>Cancel</Button>
+        <DialogActions sx={{ px: 3, py: 2, borderTop: `1px solid ${theme.palette.divider}` }}>
+          <Button 
+            onClick={handlePaymentClose}
+            sx={{ 
+              borderRadius: 2,
+              textTransform: 'none',
+              px: 3
+            }}
+          >
+            Cancel
+          </Button>
           <Button
             onClick={handlePaymentSubmit}
             variant="contained"
-            color="primary"
             disabled={!paymentData.amount || parseFloat(paymentData.amount) <= 0}
+            sx={{ 
+              borderRadius: 2,
+              textTransform: 'none',
+              px: 3,
+              background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+              '&:hover': {
+                background: `linear-gradient(45deg, ${theme.palette.primary.dark}, ${theme.palette.secondary.dark})`,
+              }
+            }}
           >
             Record Payment
           </Button>
@@ -525,11 +761,17 @@ const Customers = () => {
         open={snackbar.open}
         autoHideDuration={6000}
         onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
         <Alert
           onClose={() => setSnackbar({ ...snackbar, open: false })}
           severity={snackbar.severity}
-          sx={{ width: '100%' }}
+          variant="filled"
+          sx={{ 
+            width: '100%',
+            borderRadius: 2,
+            boxShadow: theme.shadows[3]
+          }}
         >
           {snackbar.message}
         </Alert>

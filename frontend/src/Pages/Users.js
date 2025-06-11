@@ -22,13 +22,26 @@ import {
   Select,
   MenuItem,
   FormControl,
-  InputLabel
+  InputLabel,
+  useTheme,
+  useMediaQuery,
+  Stack,
+  Card,
+  CardContent,
+  Fade,
+  Tooltip,
+  Chip,
+  Avatar
 } from '@mui/material';
 import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
-  Refresh as RefreshIcon
+  Refresh as RefreshIcon,
+  Person as PersonIcon,
+  AdminPanelSettings as AdminIcon,
+  Security as SecurityIcon,
+  Group as GroupIcon
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 import api from '../Services/api';
@@ -48,6 +61,9 @@ const Users = () => {
   const [resetPassword, setResetPassword] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isTablet = useMediaQuery(theme.breakpoints.down('md'));
 
   useEffect(() => {
     fetchUsers();
@@ -160,45 +176,109 @@ const Users = () => {
   if (user?.role !== 'super_admin') {
     return (
       <Box p={3}>
-        <Typography variant="h5" color="error">
+        <Alert 
+          severity="error" 
+          sx={{ 
+            borderRadius: 2,
+            '& .MuiAlert-icon': {
+              color: theme.palette.error.main
+            }
+          }}
+        >
           Access Denied. Only Super Admin can access this page.
-        </Typography>
+        </Alert>
       </Box>
     );
   }
 
   return (
     <Box p={3}>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h5">Manage Users</Typography>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
+        <Typography variant="h4" sx={{ 
+          fontWeight: 'bold',
+          background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+          backgroundClip: 'text',
+          WebkitBackgroundClip: 'text',
+          color: 'transparent'
+        }}>
+          Manage Users
+        </Typography>
         <Button
           variant="contained"
-          color="primary"
           startIcon={<AddIcon />}
           onClick={() => handleOpenDialog()}
+          sx={{
+            borderRadius: 2,
+            textTransform: 'none',
+            px: 3,
+            background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+            '&:hover': {
+              background: `linear-gradient(45deg, ${theme.palette.primary.dark}, ${theme.palette.secondary.dark})`,
+            }
+          }}
         >
           Add New User
         </Button>
-      </Box>
+      </Stack>
 
-      <TableContainer component={Paper}>
+      <TableContainer 
+        component={Paper}
+        elevation={0}
+        sx={{ 
+          borderRadius: 2,
+          border: `1px solid ${theme.palette.divider}`,
+          overflow: 'hidden'
+        }}
+      >
         <Table>
           <TableHead>
-            <TableRow>
-              <TableCell>Name</TableCell>
-              <TableCell>Email</TableCell>
-              <TableCell>Role</TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell>Last Login</TableCell>
-              <TableCell>Actions</TableCell>
+            <TableRow sx={{ backgroundColor: theme.palette.background.default }}>
+              <TableCell sx={{ fontWeight: 'bold' }}>Name</TableCell>
+              <TableCell sx={{ fontWeight: 'bold' }}>Email</TableCell>
+              <TableCell sx={{ fontWeight: 'bold' }}>Role</TableCell>
+              <TableCell sx={{ fontWeight: 'bold' }}>Status</TableCell>
+              <TableCell sx={{ fontWeight: 'bold' }}>Last Login</TableCell>
+              <TableCell sx={{ fontWeight: 'bold' }}>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {users.map((user) => (
-              <TableRow key={user._id}>
-                <TableCell>{user.name}</TableCell>
+              <TableRow 
+                key={user._id}
+                sx={{
+                  '&:hover': {
+                    backgroundColor: theme.palette.action.hover
+                  }
+                }}
+              >
+                <TableCell>
+                  <Stack direction="row" alignItems="center" spacing={1}>
+                    <Avatar 
+                      sx={{ 
+                        bgcolor: theme.palette.primary.main,
+                        width: 32,
+                        height: 32
+                      }}
+                    >
+                      {user.name.charAt(0).toUpperCase()}
+                    </Avatar>
+                    <Typography>{user.name}</Typography>
+                  </Stack>
+                </TableCell>
                 <TableCell>{user.email}</TableCell>
-                <TableCell>{user.role}</TableCell>
+                <TableCell>
+                  <Chip
+                    label={user.role}
+                    color={user.role === 'super_admin' ? 'primary' : 'default'}
+                    size="small"
+                    icon={user.role === 'super_admin' ? <AdminIcon /> : <PersonIcon />}
+                    sx={{ 
+                      borderRadius: 1,
+                      textTransform: 'capitalize',
+                      fontWeight: 'medium'
+                    }}
+                  />
+                </TableCell>
                 <TableCell>
                   <Switch
                     checked={user.isActive}
@@ -213,26 +293,43 @@ const Users = () => {
                     : 'Never'}
                 </TableCell>
                 <TableCell>
-                  <IconButton
-                    color="primary"
-                    onClick={() => handleOpenDialog(user)}
-                  >
-                    <EditIcon />
-                  </IconButton>
-                  <IconButton
-                    color="primary"
-                    onClick={() => handleOpenResetDialog(user)}
-                    disabled={user.role === 'super_admin'}
-                  >
-                    <RefreshIcon />
-                  </IconButton>
-                  <IconButton
-                    color="error"
-                    onClick={() => handleDelete(user._id)}
-                    disabled={user.role === 'super_admin'}
-                  >
-                    <DeleteIcon />
-                  </IconButton>
+                  <Stack direction="row" spacing={1}>
+                    <Tooltip title="Edit User" TransitionComponent={Fade}>
+                      <IconButton
+                        color="primary"
+                        onClick={() => handleOpenDialog(user)}
+                        sx={{ 
+                          '&:hover': { backgroundColor: `${theme.palette.primary.main}15` }
+                        }}
+                      >
+                        <EditIcon />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Reset Password" TransitionComponent={Fade}>
+                      <IconButton
+                        color="primary"
+                        onClick={() => handleOpenResetDialog(user)}
+                        disabled={user.role === 'super_admin'}
+                        sx={{ 
+                          '&:hover': { backgroundColor: `${theme.palette.primary.main}15` }
+                        }}
+                      >
+                        <RefreshIcon />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Delete User" TransitionComponent={Fade}>
+                      <IconButton
+                        color="error"
+                        onClick={() => handleDelete(user._id)}
+                        disabled={user.role === 'super_admin'}
+                        sx={{ 
+                          '&:hover': { backgroundColor: `${theme.palette.error.main}15` }
+                        }}
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </Tooltip>
+                  </Stack>
                 </TableCell>
               </TableRow>
             ))}
@@ -241,20 +338,33 @@ const Users = () => {
       </TableContainer>
 
       {/* Create/Edit User Dialog */}
-      <Dialog open={openDialog} onClose={handleCloseDialog}>
-        <DialogTitle>
+      <Dialog 
+        open={openDialog} 
+        onClose={handleCloseDialog}
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            minWidth: { xs: '90%', sm: 400 }
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+          color: 'white',
+          py: 2
+        }}>
           {selectedUser ? 'Edit User' : 'Create New User'}
         </DialogTitle>
-        <DialogContent>
-          <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
+        <DialogContent sx={{ pt: 3 }}>
+          <Stack spacing={2}>
             <TextField
               fullWidth
               label="Name"
               name="name"
               value={formData.name}
               onChange={handleInputChange}
-              margin="normal"
               required
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
             />
             <TextField
               fullWidth
@@ -263,16 +373,17 @@ const Users = () => {
               type="email"
               value={formData.email}
               onChange={handleInputChange}
-              margin="normal"
               required
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
             />
-            <FormControl fullWidth margin="normal">
+            <FormControl fullWidth>
               <InputLabel>Role</InputLabel>
               <Select
                 name="role"
                 value={formData.role}
                 onChange={handleInputChange}
                 label="Role"
+                sx={{ borderRadius: 2 }}
               >
                 <MenuItem value="sub_admin">Sub Admin</MenuItem>
                 <MenuItem value="super_admin">Super Admin</MenuItem>
@@ -286,39 +397,96 @@ const Users = () => {
                 type="password"
                 value={formData.password}
                 onChange={handleInputChange}
-                margin="normal"
                 required
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
               />
             )}
-          </Box>
+          </Stack>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDialog}>Cancel</Button>
-          <Button onClick={handleSubmit} variant="contained" color="primary">
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button 
+            onClick={handleCloseDialog}
+            sx={{ 
+              borderRadius: 2,
+              textTransform: 'none',
+              px: 3
+            }}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleSubmit} 
+            variant="contained"
+            sx={{
+              borderRadius: 2,
+              textTransform: 'none',
+              px: 3,
+              background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+              '&:hover': {
+                background: `linear-gradient(45deg, ${theme.palette.primary.dark}, ${theme.palette.secondary.dark})`,
+              }
+            }}
+          >
             {selectedUser ? 'Update' : 'Create'}
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* Reset Password Dialog */}
-      <Dialog open={openResetDialog} onClose={handleCloseResetDialog}>
-        <DialogTitle>Reset Password</DialogTitle>
-        <DialogContent>
-          <Box component="form" onSubmit={handleResetPassword} sx={{ mt: 2 }}>
+      <Dialog 
+        open={openResetDialog} 
+        onClose={handleCloseResetDialog}
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            minWidth: { xs: '90%', sm: 400 }
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+          color: 'white',
+          py: 2
+        }}>
+          Reset Password
+        </DialogTitle>
+        <DialogContent sx={{ pt: 3 }}>
+          <Stack spacing={2}>
             <TextField
               fullWidth
               label="New Password"
               type="password"
               value={resetPassword}
               onChange={(e) => setResetPassword(e.target.value)}
-              margin="normal"
               required
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
             />
-          </Box>
+          </Stack>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseResetDialog}>Cancel</Button>
-          <Button onClick={handleResetPassword} variant="contained" color="primary">
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button 
+            onClick={handleCloseResetDialog}
+            sx={{ 
+              borderRadius: 2,
+              textTransform: 'none',
+              px: 3
+            }}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleResetPassword} 
+            variant="contained"
+            sx={{
+              borderRadius: 2,
+              textTransform: 'none',
+              px: 3,
+              background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+              '&:hover': {
+                background: `linear-gradient(45deg, ${theme.palette.primary.dark}, ${theme.palette.secondary.dark})`,
+              }
+            }}
+          >
             Reset Password
           </Button>
         </DialogActions>
@@ -329,8 +497,18 @@ const Users = () => {
         open={!!success}
         autoHideDuration={6000}
         onClose={() => setSuccess('')}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
-        <Alert severity="success" onClose={() => setSuccess('')}>
+        <Alert 
+          severity="success" 
+          onClose={() => setSuccess('')}
+          sx={{ 
+            borderRadius: 2,
+            '& .MuiAlert-icon': {
+              color: theme.palette.success.main
+            }
+          }}
+        >
           {success}
         </Alert>
       </Snackbar>
@@ -339,8 +517,18 @@ const Users = () => {
         open={!!error}
         autoHideDuration={6000}
         onClose={() => setError('')}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
-        <Alert severity="error" onClose={() => setError('')}>
+        <Alert 
+          severity="error" 
+          onClose={() => setError('')}
+          sx={{ 
+            borderRadius: 2,
+            '& .MuiAlert-icon': {
+              color: theme.palette.error.main
+            }
+          }}
+        >
           {error}
         </Alert>
       </Snackbar>

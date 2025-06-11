@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   AppBar,
   Box,
@@ -15,6 +15,10 @@ import {
   useTheme,
   Menu,
   MenuItem,
+  Avatar,
+  Divider,
+  Badge,
+  useMediaQuery,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -27,17 +31,24 @@ import {
   Assessment,
   Person,
   Logout,
+  Notifications,
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 
-const drawerWidth = 240;
+const drawerWidth = {
+  xs: '100%',
+  sm: 280,
+  md: 300
+};
 
 const MainLayout = ({ children }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
   const theme = useTheme();
   const navigate = useNavigate();
+  const location = useLocation();
   const { logout, user } = useAuth();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   useEffect(() => {
     console.log('Current user:', user);
@@ -71,67 +82,169 @@ const MainLayout = ({ children }) => {
     { text: 'Reports', icon: <Assessment />, path: '/reports' },
   ];
 
-  // Add Users menu item for super admin
   if (user?.role === 'super_admin') {
     menuItems.push({ text: 'Users', icon: <Person />, path: '/users' });
   }
 
   const drawer = (
-    <div>
-      <Toolbar>
-        <Typography variant="h6" noWrap component="div">
-          POS System
-        </Typography>
-      </Toolbar>
-      <List>
+    <Box sx={{ height: '100%', bgcolor: 'background.paper' }}>
+      <Box
+        sx={{
+          p: { xs: 1.5, sm: 2 },
+          display: 'flex',
+          alignItems: 'center',
+          gap: 2,
+          borderBottom: `1px solid ${theme.palette.divider}`,
+        }}
+      >
+        <Avatar
+          sx={{
+            bgcolor: theme.palette.primary.main,
+            width: { xs: 32, sm: 40 },
+            height: { xs: 32, sm: 40 },
+          }}
+        >
+          {user?.name?.charAt(0)}
+        </Avatar>
+        <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
+          <Typography variant="subtitle1" fontWeight="600">
+            {user?.name}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {user?.role}
+          </Typography>
+        </Box>
+      </Box>
+      <List sx={{ px: { xs: 1, sm: 2 }, py: 1 }}>
         {menuItems.map((item) => (
           <ListItem
             button
             key={item.text}
-            onClick={() => navigate(item.path)}
+            onClick={() => {
+              navigate(item.path);
+              if (isMobile) {
+                setMobileOpen(false);
+              }
+            }}
+            sx={{
+              borderRadius: 2,
+              mb: 0.5,
+              bgcolor: location.pathname === item.path ? 'action.selected' : 'transparent',
+              color: location.pathname === item.path ? 'text.primary' : 'text.secondary',
+              '&:hover': {
+                bgcolor: 'action.hover',
+                color: 'text.primary',
+              },
+              transition: 'all 0.2s ease-in-out',
+              py: { xs: 1, sm: 1.5 },
+            }}
           >
-            <ListItemIcon>{item.icon}</ListItemIcon>
-            <ListItemText primary={item.text} />
+            <ListItemIcon
+              sx={{
+                color: 'inherit',
+                minWidth: { xs: 36, sm: 40 },
+              }}
+            >
+              {item.icon}
+            </ListItemIcon>
+            <ListItemText
+              primary={item.text}
+              primaryTypographyProps={{
+                fontWeight: location.pathname === item.path ? 600 : 400,
+                fontSize: { xs: '0.875rem', sm: '0.9rem' },
+              }}
+            />
           </ListItem>
         ))}
       </List>
-    </div>
+    </Box>
   );
 
   return (
-    <Box sx={{ display: 'flex' }}>
+    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
       <CssBaseline />
       <AppBar
         position="fixed"
+        elevation={0}
         sx={{
-          width: { sm: `calc(100% - ${drawerWidth}px)` },
-          ml: { sm: `${drawerWidth}px` },
+          width: { sm: `calc(100% - ${drawerWidth.sm}px)` },
+          ml: { sm: `${drawerWidth.sm}px` },
+          bgcolor: 'background.paper',
+          borderBottom: `1px solid ${theme.palette.divider}`,
         }}
       >
-        <Toolbar>
+        <Toolbar sx={{ px: { xs: 1, sm: 2 } }}>
           <IconButton
             color="inherit"
             aria-label="open drawer"
             edge="start"
             onClick={handleDrawerToggle}
-            sx={{ mr: 2, display: { sm: 'none' } }}
+            sx={{ mr: 2, display: { sm: 'none' }, color: 'text.primary' }}
           >
             <MenuIcon />
           </IconButton>
-          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-            POS System
+          <Typography
+            variant="h6"
+            noWrap
+            component="div"
+            sx={{
+              flexGrow: 1,
+              color: 'text.primary',
+              fontWeight: 600,
+              fontSize: { xs: '1.1rem', sm: '1.25rem' },
+              background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+              backgroundClip: 'text',
+              WebkitBackgroundClip: 'text',
+              color: 'transparent',
+              letterSpacing: '0.5px'
+            }}
+          >
+            KPK Cables POS System
           </Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <Typography variant="body1" sx={{ mr: 2 }}>
-              {user?.name} ({user?.role})
-            </Typography>
-            <IconButton color="inherit" onClick={handleMenuClick}>
-              <Person />
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 2 } }}>
+            <IconButton color="inherit" sx={{ color: 'text.primary' }}>
+              <Badge badgeContent={4} color="error">
+                <Notifications />
+              </Badge>
             </IconButton>
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                cursor: 'pointer',
+                p: { xs: 0.5, sm: 1 },
+                borderRadius: 1,
+                '&:hover': { bgcolor: 'action.hover' },
+              }}
+              onClick={handleMenuClick}
+            >
+              <Avatar
+                sx={{
+                  width: { xs: 28, sm: 32 },
+                  height: { xs: 28, sm: 32 },
+                  bgcolor: 'primary.main',
+                }}
+              >
+                {user?.name?.charAt(0)}
+              </Avatar>
+              <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
+                <Typography variant="subtitle2" color="text.primary">
+                  {user?.name}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {user?.role}
+                </Typography>
+              </Box>
+            </Box>
             <Menu
               anchorEl={anchorEl}
               open={Boolean(anchorEl)}
               onClose={handleMenuClose}
+              PaperProps={{
+                elevation: 2,
+                sx: { minWidth: 200, mt: 1 },
+              }}
             >
               <MenuItem onClick={handleLogout}>
                 <ListItemIcon>
@@ -145,7 +258,7 @@ const MainLayout = ({ children }) => {
       </AppBar>
       <Box
         component="nav"
-        sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
+        sx={{ width: { sm: drawerWidth.sm }, flexShrink: { sm: 0 } }}
       >
         <Drawer
           variant="temporary"
@@ -158,7 +271,7 @@ const MainLayout = ({ children }) => {
             display: { xs: 'block', sm: 'none' },
             '& .MuiDrawer-paper': {
               boxSizing: 'border-box',
-              width: drawerWidth,
+              width: drawerWidth.xs,
             },
           }}
         >
@@ -170,7 +283,8 @@ const MainLayout = ({ children }) => {
             display: { xs: 'none', sm: 'block' },
             '& .MuiDrawer-paper': {
               boxSizing: 'border-box',
-              width: drawerWidth,
+              width: drawerWidth.sm,
+              borderRight: `1px solid ${theme.palette.divider}`,
             },
           }}
           open
@@ -182,8 +296,10 @@ const MainLayout = ({ children }) => {
         component="main"
         sx={{
           flexGrow: 1,
-          p: 3,
-          width: { sm: `calc(100% - ${drawerWidth}px)` },
+          p: { xs: 1.5, sm: 2, md: 3 },
+          width: { sm: `calc(100% - ${drawerWidth.sm}px)` },
+          minHeight: '100vh',
+          bgcolor: 'background.default',
         }}
       >
         <Toolbar />

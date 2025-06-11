@@ -8,8 +8,11 @@ import {
   Button,
   Paper,
   Alert,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material';
 import { useAuth } from '../context/AuthContext';
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -17,6 +20,8 @@ const Login = () => {
   const [error, setError] = useState('');
   const navigate = useNavigate();
   const { login } = useAuth();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -29,36 +34,91 @@ const Login = () => {
   };
 
   return (
-    <Container component="main" maxWidth="xs">
-      <Box
-        sx={{
-          marginTop: 8,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-        }}
-      >
+    <Box
+      sx={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(135deg, #1976d2 0%, #64b5f6 100%)',
+        padding: isMobile ? 2 : 4,
+      }}
+    >
+      <Container component="main" maxWidth="xs">
         <Paper
-          elevation={3}
+          elevation={6}
           sx={{
-            padding: 4,
+            padding: isMobile ? 3 : 4,
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            width: '100%',
+            borderRadius: 2,
+            background: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(10px)',
           }}
         >
-          <Typography component="h1" variant="h5">
-            POS System Login
+          <Box
+            sx={{
+              width: 50,
+              height: 50,
+              borderRadius: '50%',
+              backgroundColor: theme.palette.primary.main,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: 2,
+            }}
+          >
+            <LockOutlinedIcon sx={{ color: 'white' }} />
+          </Box>
+
+          <Typography
+            component="h1"
+            variant="h4"
+            sx={{
+              fontWeight: 600,
+              color: theme.palette.primary.main,
+              marginBottom: 1,
+            }}
+          >
+            Welcome Back
           </Typography>
+          
+          <Typography
+            variant="body1"
+            sx={{
+              color: 'text.secondary',
+              marginBottom: 3,
+              textAlign: 'center',
+            }}
+          >
+            Sign in to access your POS dashboard
+          </Typography>
+
           {error && (
-            <Alert severity="error" sx={{ width: '100%', mt: 2 }}>
+            <Alert
+              severity="error"
+              sx={{
+                width: '100%',
+                mb: 2,
+                borderRadius: 1,
+              }}
+            >
               {error}
             </Alert>
           )}
-          <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1 }}>
+
+          <Box
+            component="form"
+            onSubmit={handleSubmit}
+            sx={{
+              width: '100%',
+              '& .MuiTextField-root': {
+                mb: 2,
+              },
+            }}
+          >
             <TextField
-              margin="normal"
               required
               fullWidth
               id="email"
@@ -68,9 +128,14 @@ const Login = () => {
               autoFocus
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              variant="outlined"
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 1,
+                },
+              }}
             />
             <TextField
-              margin="normal"
               required
               fullWidth
               name="password"
@@ -80,19 +145,37 @@ const Login = () => {
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              variant="outlined"
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 1,
+                },
+              }}
             />
             <Button
               type="submit"
               fullWidth
               variant="contained"
-              sx={{ mt: 3, mb: 2 }}
+              sx={{
+                mt: 2,
+                mb: 2,
+                py: 1.5,
+                borderRadius: 1,
+                textTransform: 'none',
+                fontSize: '1.1rem',
+                fontWeight: 600,
+                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                '&:hover': {
+                  boxShadow: '0 6px 8px rgba(0, 0, 0, 0.15)',
+                },
+              }}
             >
               Sign In
             </Button>
           </Box>
         </Paper>
-      </Box>
-    </Container>
+      </Container>
+    </Box>
   );
 };
 
