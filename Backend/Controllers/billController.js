@@ -301,28 +301,41 @@ export const getMonthlySummary = async (req, res) => {
 export const getCategorySummary = async (req, res) => {
   try {
     const bills = await Bill.find()
-      .populate('items.product', 'category');
+      .populate({
+        path: 'items.product',
+        select: 'category name price'
+      });
 
     const categorySummary = bills.reduce((summary, bill) => {
       bill.items.forEach(item => {
+        if (!item.product) return; // Skip if product is not found
+        
         const category = item.product.category || 'Uncategorized';
         if (!summary[category]) {
           summary[category] = {
             _id: category,
+            name: category,
             amount: 0,
             count: 0
           };
         }
-        summary[category].amount += item.price * item.quantity;
+        summary[category].amount += (item.price || item.product.price) * item.quantity;
         summary[category].count += item.quantity;
       });
       return summary;
     }, {});
 
-    res.json(Object.values(categorySummary));
+    // Convert to array and sort by amount
+    const summaryArray = Object.values(categorySummary)
+      .sort((a, b) => b.amount - a.amount);
+
+    res.json(summaryArray);
   } catch (error) {
     console.error('Category summary error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ 
+      message: 'Error getting category summary',
+      error: error.message 
+    });
   }
 };
 
