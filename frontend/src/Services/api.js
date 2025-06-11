@@ -4,9 +4,11 @@ import axios from 'axios';
 const api = axios.create({
   baseURL: process.env.REACT_APP_API_URL || 'https://posbackend-wheat.vercel.app/api',
   headers: {
-    'Content-Type': 'application/json'
+    'Content-Type': 'application/json',
+    'Accept': 'application/json'
   },
-  withCredentials: true
+  withCredentials: true,
+  timeout: 10000 // 10 second timeout
 });
 
 // Add request interceptor to include auth token
@@ -32,6 +34,12 @@ api.interceptors.response.use(
       localStorage.removeItem('token');
       window.location.href = '/login';
     }
+    // Log the error for debugging
+    console.error('API Error:', {
+      status: error.response?.status,
+      data: error.response?.data,
+      config: error.config
+    });
     return Promise.reject(error);
   }
 );
