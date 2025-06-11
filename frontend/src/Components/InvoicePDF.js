@@ -1,37 +1,55 @@
 import React from 'react';
 import { Page, Text, View, Document, StyleSheet, Image } from '@react-pdf/renderer';
 
+const formatCurrency = (amount) => {
+  if (typeof amount !== 'number') return 'N/A';
+  return `Rs. ${amount.toFixed(2)}`;
+};
+
 const styles = StyleSheet.create({
   page: {
-    padding: 30,
+    padding: 40,
     fontSize: 10,
     fontFamily: 'Helvetica',
     backgroundColor: '#fff',
   },
-  header: {
+  // ✅ Watermark style
+  watermark: {
+    position: 'absolute',
+    top: '33%',
+    left: '20%',
+    width: 300,
+    height: 300,
+    opacity: 0.09,
+    zIndex: -1,
+  },
+  headerRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 20,
   },
-  companyInfoBlock: {
+  logoBlock: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 8, // Approx 1 MUI unit, from BillTemplate's gap={1}
+    alignItems: 'center',
+    gap: 0,
+    marginTop: -50,
+    marginLeft: -40,
   },
   logo: {
-    width: 120,
-    height: 120,
+    width: 150,
+    height: 150,
     objectFit: 'contain',
   },
   companyTextBlock: {
     flexDirection: 'column',
-    gap: 0, // Tight vertical spacing
+    gap: 0,
   },
   companyName: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#333',
+    marginLeft: -30,
   },
   tmText: {
     fontSize: 10,
@@ -41,22 +59,20 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: 'bold',
     color: '#424242',
+    marginTop: -50,
   },
   divider: {
     borderBottom: '1px solid #ccc',
-    marginTop: -6,
-    marginBottom: 20,
+    marginTop: -45,
+    marginBottom: 32,
   },
-  // Customer and Invoice Details Section
   detailsSection: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 20,
+    marginBottom: 32,
   },
-  invoiceToBlock: {
-    flexDirection: 'column',
-  },
+  invoiceToBlock: {},
   invoiceToTitle: {
     fontSize: 16,
     fontWeight: 'bold',
@@ -75,22 +91,22 @@ const styles = StyleSheet.create({
   },
   invoiceMeta: {
     textAlign: 'right',
+    alignItems: 'flex-end',
   },
   invoiceMetaText: {
     fontSize: 10,
     marginBottom: 4,
   },
   totalDueAmount: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#f44336',
     marginTop: 12,
   },
-  // Items Table
   table: {
     display: 'table',
     width: 'auto',
-    marginVertical: 10,
+    marginBottom: 32,
     borderStyle: 'solid',
     borderColor: '#424242',
     borderWidth: 1,
@@ -110,6 +126,19 @@ const styles = StyleSheet.create({
     borderColor: '#424242',
     borderBottomWidth: 1,
     borderRightWidth: 1,
+    textAlign: 'right',
+  },
+  tableColHeaderLeft: {
+    width: '25%',
+    backgroundColor: '#424242',
+    color: '#fff',
+    fontWeight: 'bold',
+    padding: 8,
+    borderStyle: 'solid',
+    borderColor: '#424242',
+    borderBottomWidth: 1,
+    borderRightWidth: 1,
+    textAlign: 'left',
   },
   tableCol: {
     width: '25%',
@@ -118,15 +147,24 @@ const styles = StyleSheet.create({
     borderColor: '#eee',
     borderBottomWidth: 1,
     borderRightWidth: 1,
+    textAlign: 'right',
+  },
+  tableColLeft: {
+    width: '25%',
+    padding: 8,
+    borderStyle: 'solid',
+    borderColor: '#eee',
+    borderBottomWidth: 1,
+    borderRightWidth: 1,
+    textAlign: 'left',
   },
   tableRowOdd: {
     backgroundColor: '#f5f5f5',
   },
-  // Summary and Payment Method
   summarySection: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 20,
+    marginBottom: 32,
   },
   paymentMethodBlock: {
     flex: 1,
@@ -142,8 +180,9 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   summaryTable: {
-    width: 'auto',
-    marginLeft: 'auto',
+    flex: 1,
+    textAlign: 'right',
+    alignItems: 'flex-end',
   },
   summaryTableRow: {
     flexDirection: 'row',
@@ -158,24 +197,22 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
   },
-  // Notes Section
   notesSection: {
     marginBottom: 20,
   },
   notesTitle: {
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: 'bold',
   },
   notesText: {
     fontSize: 10,
     color: '#666',
   },
-  // Administrator Section (Terms and Conditions removed)
   adminSection: {
     flexDirection: 'row',
-    justifyContent: 'flex-end', 
+    justifyContent: 'flex-end',
     alignItems: 'flex-end',
-    marginTop: 30,
+    marginTop: 32,
   },
   adminBlock: {
     textAlign: 'right',
@@ -191,16 +228,22 @@ const styles = StyleSheet.create({
 });
 
 const InvoicePDF = ({ bill, companyInfo }) => {
-  const formattedAddress = typeof bill.customer?.address === 'object' 
-    ? Object.values(bill.customer.address).filter(Boolean).join(', ') 
-    : bill.customer?.address || 'N/A';
+  const formattedAddress = bill.customer?.address
+    ? (typeof bill.customer.address === 'object'
+        ? Object.values(bill.customer.address).filter(Boolean).join(', ')
+        : bill.customer.address)
+    : 'N/A';
 
   return (
     <Document>
       <Page size="A4" style={styles.page}>
+        
+        {/* ✅ Watermark logo */}
+        <Image src="/Logo1.png" style={styles.watermark} />
+
         {/* Header Section */}
-        <View style={styles.header}>
-          <View style={styles.companyInfoBlock}>
+        <View style={styles.headerRow}>
+          <View style={styles.logoBlock}>
             <Image src="/Logo1.png" style={styles.logo} />
             <View style={styles.companyTextBlock}>
               <Text style={styles.companyName}>{companyInfo.name || 'KPK Cables'}</Text>
@@ -212,40 +255,38 @@ const InvoicePDF = ({ bill, companyInfo }) => {
 
         <View style={styles.divider} />
 
-        {/* Invoice Details and Total Due */}
         <View style={styles.detailsSection}>
           <View style={styles.invoiceToBlock}>
             <Text style={styles.invoiceToTitle}>Invoice to :</Text>
             <Text style={styles.customerName}>{bill.customer?.name || 'N/A'}</Text>
-            {/* Email removed as per BillTemplate.js changes */}
             <Text style={styles.customerDetail}>{formattedAddress}</Text>
-            <Text style={styles.customerDetail}>Phone: {bill.customer?.phone || 'N/A'}</Text>
+            <Text style={styles.customerDetail}>{bill.customer?.phone || 'N/A'}</Text>
           </View>
           <View style={styles.invoiceMeta}>
-            <Text style={styles.invoiceMetaText}>Invoice Date: {bill.date ? new Date(bill.date).toLocaleDateString() : 'N/A'}</Text>
-            <Text style={styles.invoiceMetaText}>Invoice No: {bill.billNumber || 'N/A'}</Text>
-            <Text style={styles.totalDueAmount}>Total Due : Rs. {bill.dueAmount?.toFixed(2) || '0.00'}</Text>
+            <Text style={styles.invoiceMetaText}><Text style={{ fontWeight: 'bold' }}>Invoice Date:</Text> {bill.date ? new Date(bill.date).toLocaleDateString() : 'N/A'}</Text>
+            <Text style={styles.invoiceMetaText}><Text style={{ fontWeight: 'bold' }}>Invoice No:</Text> {bill.billNumber || 'N/A'}</Text>
+            <Text style={styles.totalDueAmount}>Total Due : {formatCurrency(bill.dueAmount)}</Text>
           </View>
         </View>
 
         {/* Items Table */}
         <View style={styles.table}>
           <View style={styles.tableRow} fixed>
-            <Text style={styles.tableColHeader}>Description</Text>
+            <Text style={styles.tableColHeaderLeft}>Description</Text>
             <Text style={styles.tableColHeader}>Qty</Text>
             <Text style={styles.tableColHeader}>Price</Text>
             <Text style={styles.tableColHeader}>Total</Text>
           </View>
           {bill.items.length > 0 ? bill.items.map((item, idx) => (
             <View style={[styles.tableRow, idx % 2 === 1 ? styles.tableRowOdd : {}]} key={idx}>
-              <Text style={styles.tableCol}>{item.name || 'N/A'}</Text>
+              <Text style={styles.tableColLeft}>{item.name || 'N/A'}</Text>
               <Text style={styles.tableCol}>{item.quantity || 0}</Text>
-              <Text style={styles.tableCol}>Rs. {item.price?.toFixed(2) || '0.00'}</Text>
-              <Text style={styles.tableCol}>Rs. {item.total?.toFixed(2) || '0.00'}</Text>
+              <Text style={styles.tableCol}>{formatCurrency(item.price)}</Text>
+              <Text style={styles.tableCol}>{formatCurrency(item.total)}</Text>
             </View>
           )) : (
             <View style={styles.tableRow} key="no-items">
-              <Text style={[styles.tableCol, { width: '100%', textAlign: 'center' }]}>No items</Text>
+              <Text style={[styles.tableColLeft, { width: '100%', textAlign: 'center' }]}>No items</Text>
             </View>
           )}
         </View>
@@ -255,20 +296,19 @@ const InvoicePDF = ({ bill, companyInfo }) => {
           <View style={styles.paymentMethodBlock}>
             <Text style={styles.paymentMethodTitle}>Payment Method</Text>
             <Text style={styles.paymentMethodText}>Method: {bill.paymentMethod || 'N/A'}</Text>
-            {/* Bank details removed as per BillTemplate.js changes */}
           </View>
           <View style={styles.summaryTable}>
             <View style={styles.summaryTableRow}>
               <Text style={styles.summaryTableCell}>Sub-total :</Text>
-              <Text style={styles.summaryTableCell}>Rs. {bill.subtotal?.toFixed(2) || '0.00'}</Text>
+              <Text style={styles.summaryTableCell}>{formatCurrency(bill.subtotal)}</Text>
             </View>
             <View style={styles.summaryTableRow}>
               <Text style={styles.summaryTableCell}>Tax ({bill.tax}%):</Text>
-              <Text style={styles.summaryTableCell}>Rs. {bill.tax?.toFixed(2) || '0.00'}</Text>
+              <Text style={styles.summaryTableCell}>{formatCurrency(bill.tax)}</Text>
             </View>
             <View style={[styles.summaryTableRow, styles.summaryTotalCell]}>
               <Text style={[styles.summaryTableCell, styles.summaryTotalCell]}>Total :</Text>
-              <Text style={[styles.summaryTableCell, styles.summaryTotalCell]}>Rs. {bill.total?.toFixed(2) || '0.00'}</Text>
+              <Text style={[styles.summaryTableCell, styles.summaryTotalCell]}>{formatCurrency(bill.total)}</Text>
             </View>
           </View>
         </View>
@@ -280,7 +320,6 @@ const InvoicePDF = ({ bill, companyInfo }) => {
           </View>
         )}
 
-        {/* Administrator Section */}
         <View style={styles.adminSection}>
           <View style={styles.adminBlock}>
             <Text style={styles.adminName}>Hajji Waheed Ahmad</Text>
@@ -292,4 +331,4 @@ const InvoicePDF = ({ bill, companyInfo }) => {
   );
 };
 
-export default InvoicePDF; 
+export default InvoicePDF;
