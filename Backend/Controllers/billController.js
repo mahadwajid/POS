@@ -70,77 +70,87 @@ export const createBill = async (req, res) => {
       customer,
       items,
       subtotal,
+      discount,
       tax,
+      taxAmount,
       total,
       paidAmount,
+      dueAmount,
       paymentMethod,
       notes
     } = req.body;
+
+    // Validate required fields
+    if (!customer || !items || !items.length) {
+      return res.status(400).json({ message: 'Customer and items are required' });
+    }
 
     // Validate product quantities
     for (const item of items) {
       const product = await Product.findById(item.product);
       if (!product) {
-        return res.status(400).json({ 
-          message: `Product not found: ${item.product}` 
-        });
+        return res.status(400).json({ message: `Product not found: ${item.product}` });
       }
       if (product.quantity < item.quantity) {
         return res.status(400).json({ 
-          message: `Not enough stock available for ${product.name}. Available: ${product.quantity}, Requested: ${item.quantity}` 
+          message: `Insufficient quantity for ${product.name}. Available: ${product.quantity}` 
         });
       }
     }
 
     // Generate bill number
-    const lastBill = await Bill.findOne().sort({ billNumber: -1 });
-    const billNumber = lastBill ? lastBill.billNumber + 1 : 1001;
+    const date = new Date();
+    const year = date.getFullYear().toString().slice(-2);
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    const randomNum = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+    const billNumber = `BILL-${year}${month}${day}-${randomNum}`;
 
-    // Calculate due amount
-    const dueAmount = total - paidAmount;
-
-    // Create bill
-    const bill = await Bill.create({
+    // Create new bill
+    const bill = new Bill({
       billNumber,
       customer,
       items,
       subtotal,
+      discount,
       tax,
+      taxAmount,
       total,
       paidAmount,
       dueAmount,
       paymentMethod,
       notes,
-      status: dueAmount > 0 ? 'pending' : 'paid',
-      createdBy: req.user._id
+      status: dueAmount > 0 ? 'pending' : 'paid'
     });
+
+    // Save bill
+    await bill.save();
 
     // Update product quantities
     for (const item of items) {
-      await Product.findByIdAndUpdate(item.product, {
-        $inc: { quantity: -item.quantity }
-      });
+      await Product.findByIdAndUpdate(
+        item.product,
+        { $inc: { quantity: -item.quantity } }
+      );
     }
 
-    // Update customer's total due
+    // Update customer dues if there's a due amount
     if (dueAmount > 0) {
-      await Customer.findByIdAndUpdate(customer, {
-        $inc: { totalDue: dueAmount }
-      });
+      await Customer.findByIdAndUpdate(
+        customer,
+        { $inc: { dues: dueAmount } }
+      );
     }
 
-    // Populate bill details
+    // Populate bill details before sending response
     const populatedBill = await Bill.findById(bill._id)
-      .populate('customer', 'name phone')
-      .populate('items.product', 'name sku price');
+      .populate('customer', 'name phone address')
+      .populate('items.product', 'name price');
 
     res.status(201).json(populatedBill);
   } catch (error) {
-    console.error('Bill creation error:', error);
-    res.status(500).json({ 
-      message: 'Server error',
-      details: error.message 
-    });
+    console.error('Error creating bill:', error);
+    res.status(500).json({ message: 'Error creating bill', error: error.message });
   }
 };
 

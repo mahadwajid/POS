@@ -272,7 +272,7 @@ const InvoicePDF = ({ bill, companyInfo }) => {
         {/* Items Table */}
         <View style={styles.table}>
           <View style={styles.tableRow} fixed>
-            <Text style={styles.tableColHeaderLeft}>Description</Text>
+            <Text style={styles.tableColHeaderLeft}>Product Name</Text>
             <Text style={styles.tableColHeader}>Qty</Text>
             <Text style={styles.tableColHeader}>Price</Text>
             <Text style={styles.tableColHeader}>Total</Text>

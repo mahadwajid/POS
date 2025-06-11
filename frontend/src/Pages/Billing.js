@@ -62,7 +62,7 @@ const Billing = () => {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [items, setItems] = useState([]);
   const [discount, setDiscount] = useState(0);
-  const [taxRate, setTaxRate] = useState(18); // Default GST rate
+  const [tax, setTax] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [paidAmount, setPaidAmount] = useState(0);
   const [notes, setNotes] = useState('');
@@ -125,14 +125,14 @@ const Billing = () => {
         total: item.total
       })),
       subtotal: subTotal,
-      tax: taxAmount,
+      tax: tax,
       discount: discount,
       total: grandTotal,
       paidAmount: paidAmount,
       dueAmount: balanceAmount,
       notes: notes
     }));
-  }, [selectedCustomer, items, discount, taxRate, paidAmount, notes]);
+  }, [selectedCustomer, items, discount, tax, paidAmount, notes]);
 
   const handleAddItem = (product) => {
     if (product.quantity <= 0) {
@@ -183,12 +183,16 @@ const Billing = () => {
     }).filter(item => item.quantity > 0));
   };
 
+  const handleTaxChange = (e) => {
+    const value = parseFloat(e.target.value) || 0;
+    setTax(value);
+  };
+
   const calculateTotals = () => {
     const subTotal = items.reduce((sum, item) => sum + item.total, 0);
     const discountAmount = (subTotal * discount) / 100;
-    const taxableAmount = subTotal - discountAmount;
-    const taxAmount = (taxableAmount * taxRate) / 100;
-    const grandTotal = taxableAmount + taxAmount;
+    const taxAmount = (subTotal * tax) / 100;
+    const grandTotal = subTotal - discountAmount + taxAmount;
     const balanceAmount = grandTotal - paidAmount;
 
     return {
@@ -200,7 +204,12 @@ const Billing = () => {
     };
   };
 
-  const handleSave = async () => {
+  const handleSaveAndPrint = async (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
     try {
       if (!selectedCustomer) {
         setError('Please select a customer');
@@ -212,91 +221,73 @@ const Billing = () => {
       }
 
       const { grandTotal, balanceAmount } = calculateTotals();
+      
+      // Generate a better formatted bill number
+      const date = new Date();
+      const year = date.getFullYear().toString().slice(-2);
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const day = date.getDate().toString().padStart(2, '0');
+      const randomNum = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+      const billNumber = `BILL-${year}${month}${day}-${randomNum}`;
+
       const billData = {
         customer: selectedCustomer._id,
         items: items.map(item => ({
           product: item.productId,
+          name: item.name,
           quantity: item.quantity,
           price: item.price,
           total: item.total
         })),
+        billNumber: billNumber,
         subtotal: calculateTotals().subTotal,
-        discount,
-        tax: taxRate,
+        discount: discount || 0,
+        tax: tax || 0,
+        taxAmount: calculateTotals().taxAmount || 0,
         total: grandTotal,
-        paidAmount,
+        paidAmount: paidAmount || 0,
         dueAmount: balanceAmount,
         paymentMethod: paymentMethod.toLowerCase(),
-        status: balanceAmount > 0 ? 'pending' : 'paid',
-        notes
+        status: 'paid',
+        notes: notes || ''
       };
 
+      // First save the bill
       const response = await api.post('/bills', billData);
-      navigate(`/billing/${response.data._id}`);
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to save bill');
-    }
-  };
+      
+      if (response.data) {
+        // Prepare print data
+        const printData = {
+          billData: {
+            ...billData,
+            billNumber: response.data.billNumber || billNumber,
+            date: response.data.date,
+            customer: {
+              _id: selectedCustomer._id,
+              name: selectedCustomer.name,
+              phone: selectedCustomer.phone || 'N/A',
+              address: selectedCustomer.address || 'N/A'
+            }
+          },
+          companyInfo: {
+            name: user.companyName || 'KPK Cables®',
+            address: user.companyAddress || 'Your Company Address',
+            phone: user.companyPhone || 'Your Company Phone',
+            email: user.companyEmail || 'Your Company Email',
+            gstin: user.companyGSTIN || 'Your GSTIN Number',
+            logo: user.companyLogo || '/logo.png'
+          }
+        };
 
-  const handlePrint = () => {
-    console.log('Print button clicked');
-    if (!selectedCustomer) {
-      setError('Please select a customer first');
-      return;
+        // Save print data to localStorage
+        localStorage.setItem('printBillData', JSON.stringify(printData));
+        
+        // Navigate to print page
+        navigate('/print-bill');
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to save and print bill');
     }
-    if (items.length === 0) {
-      setError('Please add at least one item to the bill');
-      return;
-    }
-  
-    // Calculate totals using the existing function
-    const { subTotal, discountAmount, taxAmount, grandTotal, balanceAmount } = calculateTotals();
-  
-    // Prepare bill data with all required fields
-    const billData = {
-      billNumber: `BILL-${Date.now()}`,
-      date: new Date().toISOString(),
-      customer: {
-        name: selectedCustomer.name,
-        phone: selectedCustomer.phone || 'N/A',
-        address: selectedCustomer.address || 'N/A'
-      },
-      items: items.map(item => ({
-        name: item.name,
-        quantity: item.quantity,
-        price: item.price,
-        total: item.price * item.quantity
-      })),
-      subtotal: subTotal,
-      discount: discountAmount,
-      tax: taxAmount,
-      total: grandTotal,
-      paidAmount: paidAmount,
-      dueAmount: balanceAmount,
-      paymentMethod: paymentMethod.charAt(0).toUpperCase() + paymentMethod.slice(1),
-      notes: notes
-    };
-  
-    // Prepare company info (you should customize this)
-    const companyInfo = {
-      name: user.companyName || 'KPK Cables®',
-      address: user.companyAddress || 'Your Company Address',
-      phone: user.companyPhone || 'Your Company Phone',
-      email: user.companyEmail || 'Your Company Email',
-      gstin: user.companyGSTIN || 'Your GSTIN Number',
-      logo: user.companyLogo || '/logo.png'
-    };
-  
-    // Store data in localStorage
-    localStorage.setItem('printBillData', JSON.stringify({ 
-      billData, 
-      companyInfo 
-    }));
-    
-    console.log('Saved printBillData:', { billData, companyInfo });
-    
-    // Navigate to print page
-    navigate('/print-bill');
   };
 
   if (loading) {
@@ -309,8 +300,13 @@ const Billing = () => {
 
   const { subTotal, discountAmount, taxAmount, grandTotal, balanceAmount } = calculateTotals();
 
+
   return (
-    <Box sx={{ p: 3 }}>
+    <Box 
+      component="form"
+      onSubmit={handleSaveAndPrint}
+      sx={{ p: 3 }}
+    >
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
         <Typography variant="h4" sx={{ 
           fontWeight: 'bold',
@@ -321,42 +317,22 @@ const Billing = () => {
         }}>
           Create New Bill
         </Typography>
-        <Stack direction="row" spacing={2}>
-          <Button
-            variant="outlined"
-            startIcon={<PrintIcon />}
-            onClick={handlePrint}
-            sx={{
-              borderRadius: 2,
-              textTransform: 'none',
-              px: 3,
-              borderColor: theme.palette.primary.main,
-              color: theme.palette.primary.main,
-              '&:hover': {
-                borderColor: theme.palette.primary.dark,
-                backgroundColor: `${theme.palette.primary.main}15`
-              }
-            }}
-          >
-            Print
-          </Button>
-          <Button
-            variant="contained"
-            startIcon={<SaveIcon />}
-            onClick={handleSave}
-            sx={{
-              borderRadius: 2,
-              textTransform: 'none',
-              px: 3,
-              background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-              '&:hover': {
-                background: `linear-gradient(45deg, ${theme.palette.primary.dark}, ${theme.palette.secondary.dark})`,
-              }
-            }}
-          >
-            Save Bill
-          </Button>
-        </Stack>
+        <Button
+          variant="contained"
+          startIcon={<SaveIcon />}
+          onClick={handleSaveAndPrint}
+          sx={{
+            borderRadius: 2,
+            textTransform: 'none',
+            px: 3,
+            background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+            '&:hover': {
+              background: `linear-gradient(45deg, ${theme.palette.primary.dark}, ${theme.palette.secondary.dark})`,
+            }
+          }}
+        >
+          Save & Print Bill
+        </Button>
       </Stack>
 
       {error && (
@@ -550,8 +526,8 @@ const Billing = () => {
                   fullWidth
                   label="Tax Rate (%)"
                   type="number"
-                  value={taxRate}
-                  onChange={(e) => setTaxRate(Math.max(0, Number(e.target.value)))}
+                  value={tax}
+                  onChange={handleTaxChange}
                   InputProps={{
                     endAdornment: <InputAdornment position="end">%</InputAdornment>,
                   }}

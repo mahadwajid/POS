@@ -97,7 +97,7 @@ const BillTemplate = ({ bill, companyInfo }) => {
       <Table size="small" sx={{ mb: 4, '& .MuiTableCell-head': { backgroundColor: '#424242', color: '#fff', fontWeight: 'bold' } }}>
         <TableHead>
           <TableRow>
-            <TableCell>Description</TableCell>
+            <TableCell>Name</TableCell>
             <TableCell align="right">Qty</TableCell>
             <TableCell align="right">Price</TableCell>
             <TableCell align="right">Total</TableCell>
