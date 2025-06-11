@@ -185,7 +185,7 @@ const Customers = () => {
       await api.post(`/customers/${selectedCustomer._id}/payment`, {
         ...paymentData,
         amount: parseFloat(paymentData.amount),
-        recordedBy: user._id
+        recordedBy: user.id || user._id
       });
       handlePaymentClose();
       fetchCustomers();
@@ -489,8 +489,11 @@ const Customers = () => {
               >
                 <MenuItem value="cash">Cash</MenuItem>
                 <MenuItem value="card">Card</MenuItem>
+                <MenuItem value="bank_transfer">Bank Transfer</MenuItem>
                 <MenuItem value="upi">UPI</MenuItem>
-                <MenuItem value="bank">Bank Transfer</MenuItem>
+                <MenuItem value="wallet">Wallet</MenuItem>
+                <MenuItem value="cheque">Cheque</MenuItem>
+                <MenuItem value="credit">Credit</MenuItem>
               </TextField>
               <TextField
                 fullWidth

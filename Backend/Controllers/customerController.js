@@ -128,29 +128,21 @@ export const deleteCustomer = async (req, res) => {
       return res.status(404).json({ message: 'Customer not found' });
     }
 
-    // Check for pending bills
-    const pendingBills = await Bill.find({
+    // Check for unpaid bills
+    const unpaidBills = await Bill.find({
       customer: customer._id,
-      status: { $in: ['pending', 'partial'] }
+      dueAmount: { $gt: 0 }
     });
 
-    if (pendingBills.length > 0) {
+    if (unpaidBills.length > 0) {
       return res.status(400).json({ 
-        message: 'Cannot delete customer with pending bills',
-        pendingBills: pendingBills.map(bill => ({
+        message: 'Cannot delete customer with unpaid bills',
+        unpaidBills: unpaidBills.map(bill => ({
           billNumber: bill.billNumber,
           amount: bill.total,
           dueAmount: bill.dueAmount,
           status: bill.status
         }))
-      });
-    }
-
-    // Check if customer has any dues
-    if (customer.totalDue > 0) {
-      return res.status(400).json({ 
-        message: 'Cannot delete customer with pending dues',
-        totalDue: customer.totalDue
       });
     }
 
@@ -259,6 +251,26 @@ export const recordPayment = async (req, res) => {
 
     // Update customer's financial data
     await customer.updateFinancials(amount, 'payment');
+
+    // Update associated bills
+    let remainingAmount = amount;
+    const unpaidBills = await Bill.find({
+      customer: customer._id,
+      dueAmount: { $gt: 0 }
+    }).sort({ date: 1 }); // Sort by date to pay oldest bills first
+
+    for (const bill of unpaidBills) {
+      if (remainingAmount <= 0) break;
+
+      const paymentAmount = Math.min(remainingAmount, bill.dueAmount);
+      bill.paidAmount += paymentAmount;
+      bill.dueAmount -= paymentAmount;
+      bill.status = bill.dueAmount > 0 ? 'pending' : 'paid';
+      bill.paymentStatus = bill.dueAmount > 0 ? 'partial' : 'paid';
+      
+      await bill.save();
+      remainingAmount -= paymentAmount;
+    }
 
     res.status(201).json({
       payment,

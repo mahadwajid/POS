@@ -119,8 +119,17 @@ const Billing = () => {
   }, [selectedCustomer, items, discount, taxRate, paidAmount, notes]);
 
   const handleAddItem = (product) => {
+    if (product.quantity <= 0) {
+      setError('Product is out of stock');
+      return;
+    }
+
     const existingItem = items.find(item => item.productId === product._id);
     if (existingItem) {
+      if (existingItem.quantity >= product.quantity) {
+        setError('Not enough stock available');
+        return;
+      }
       setItems(items.map(item =>
         item.productId === product._id
           ? { ...item, quantity: item.quantity + 1 }
@@ -138,9 +147,16 @@ const Billing = () => {
   };
 
   const handleQuantityChange = (productId, change) => {
+    const product = products.find(p => p._id === productId);
+    if (!product) return;
+
     setItems(items.map(item => {
       if (item.productId === productId) {
         const newQuantity = Math.max(0, item.quantity + change);
+        if (newQuantity > product.quantity) {
+          setError('Not enough stock available');
+          return item;
+        }
         return {
           ...item,
           quantity: newQuantity,
@@ -194,7 +210,7 @@ const Billing = () => {
         total: grandTotal,
         paidAmount,
         dueAmount: balanceAmount,
-        paymentMethod: paymentMethod.charAt(0).toUpperCase() + paymentMethod.slice(1),
+        paymentMethod: paymentMethod.toLowerCase(),
         status: balanceAmount > 0 ? 'pending' : 'paid',
         notes
       };
@@ -247,7 +263,7 @@ const Billing = () => {
   
     // Prepare company info (you should customize this)
     const companyInfo = {
-      name: user.companyName || 'Your Company Name',
+      name: user.companyName || 'KPK Cables®',
       address: user.companyAddress || 'Your Company Address',
       phone: user.companyPhone || 'Your Company Phone',
       email: user.companyEmail || 'Your Company Email',
@@ -429,8 +445,11 @@ const Billing = () => {
                   >
                     <MenuItem value="cash">Cash</MenuItem>
                     <MenuItem value="card">Card</MenuItem>
+                    <MenuItem value="bank_transfer">Bank Transfer</MenuItem>
                     <MenuItem value="upi">UPI</MenuItem>
-                    <MenuItem value="bank">Bank Transfer</MenuItem>
+                    <MenuItem value="wallet">Wallet</MenuItem>
+                    <MenuItem value="cheque">Cheque</MenuItem>
+                    <MenuItem value="credit">Credit</MenuItem>
                   </Select>
                 </FormControl>
               </Grid>

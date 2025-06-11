@@ -118,7 +118,7 @@ const Ledger = () => {
         amount: parseFloat(paymentAmount),
         paymentMethod,
         notes: paymentNotes,
-        recordedBy: user._id
+        recordedBy: user.id || user._id
       });
       setPaymentDialogOpen(false);
       setPaymentAmount('');
@@ -383,8 +383,11 @@ const Ledger = () => {
             >
               <option value="cash">Cash</option>
               <option value="card">Card</option>
+              <option value="bank_transfer">Bank Transfer</option>
               <option value="upi">UPI</option>
-              <option value="bank">Bank Transfer</option>
+              <option value="wallet">Wallet</option>
+              <option value="cheque">Cheque</option>
+              <option value="credit">Credit</option>
             </TextField>
             <TextField
               fullWidth
