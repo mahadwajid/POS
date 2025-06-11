@@ -78,8 +78,6 @@ export const createProduct = async (req, res) => {
       costPrice,
       quantity,
       category,
-      unitType,
-      sku,
       brand,
       model,
       warranty,
@@ -103,17 +101,11 @@ export const createProduct = async (req, res) => {
     } = req.body;
 
     // Validate required fields
-    if (!name || !price || !quantity || !category || !unitType || !sku) {
+    if (!name || !price || !quantity || !category) {
       return res.status(400).json({ 
         message: 'Missing required fields',
-        required: ['name', 'price', 'quantity', 'category', 'unitType', 'sku']
+        required: ['name', 'price', 'quantity', 'category']
       });
-    }
-
-    // Check if SKU exists
-    const existingProduct = await Product.findOne({ sku });
-    if (existingProduct) {
-      return res.status(400).json({ message: 'Product with this SKU already exists' });
     }
 
     const product = new Product({
@@ -123,8 +115,6 @@ export const createProduct = async (req, res) => {
       costPrice,
       quantity,
       category,
-      unitType,
-      sku,
       brand,
       model,
       warranty,
@@ -163,7 +153,6 @@ export const updateProduct = async (req, res) => {
   try {
     const {
       name,
-      sku,
       category,
       price,
       costPrice,
@@ -174,7 +163,6 @@ export const updateProduct = async (req, res) => {
       warranty,
       description,
       isActive,
-      unitType,
       supplier,
       location,
       taxRate,
@@ -198,14 +186,6 @@ export const updateProduct = async (req, res) => {
       return res.status(404).json({ message: 'Product not found' });
     }
 
-    // Check if SKU is taken by another product
-    if (sku && sku !== product.sku) {
-      const skuExists = await Product.findOne({ sku });
-      if (skuExists) {
-        return res.status(400).json({ message: 'SKU already exists' });
-      }
-    }
-
     // Handle supplier field
     let supplierObj = supplier;
     if (typeof supplier === 'string') {
@@ -219,7 +199,6 @@ export const updateProduct = async (req, res) => {
     // Update product
     Object.assign(product, {
       name: name || product.name,
-      sku: sku || product.sku,
       category: category || product.category,
       price: price || product.price,
       costPrice: costPrice || product.costPrice,
@@ -230,7 +209,6 @@ export const updateProduct = async (req, res) => {
       warranty: warranty || product.warranty,
       description: description || product.description,
       isActive: isActive !== undefined ? isActive : product.isActive,
-      unitType: unitType || product.unitType,
       supplier: supplierObj,
       location: location || product.location,
       taxRate: taxRate || product.taxRate,

@@ -67,7 +67,6 @@ async function generateCustomers(count) {
                 state: 'Test State',
                 pincode: '12345'
             },
-            creditLimit: getRandomNumber(5000, 50000),
             totalDue: 0,
             isActive: true
         });
@@ -83,17 +82,21 @@ async function generateProducts(count) {
     console.log(`Generating ${count} products...`);
     const products = [];
 
+    const categories = ['Switches', 'Circuit Breakers', 'Lightening', 'Boxes', 'Other'];
+
     for (let i = 0; i < count; i++) {
         const price = getRandomNumber(100, 10000);
+        let category = getRandomItem(categories);
+        if (category === 'Other') {
+            category = `OtherCategory${i+1}`;
+        }
         products.push({
             name: `Test Product ${i + 1}`,
             description: `Description for product ${i + 1}`,
-            category: getRandomItem(categories),
+            category,
             price: price,
             costPrice: price * 0.8,
             quantity: getRandomNumber(0, 100),
-            unitType: getRandomItem(unitTypes),
-            sku: `SKU${String(i + 1).padStart(3, '0')}`,
             brand: `Test Brand ${i + 1}`,
             model: `Model ${i + 1}`,
             warranty: getRandomNumber(0, 24), // warranty in months

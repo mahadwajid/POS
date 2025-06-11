@@ -182,10 +182,14 @@ export const createBill = async (req, res) => {
     }
 
     // Update customer's total due
+    console.log('DEBUG: About to update customer totalDue', { customer, total, paymentStatus });
     if (paymentStatus === 'pending' || paymentStatus === 'partial') {
-      await Customer.findByIdAndUpdate(customer, {
+      const updateResult = await Customer.findByIdAndUpdate(customer, {
         $inc: { totalDue: total }
-      });
+      }, { new: true });
+      console.log('DEBUG: Customer totalDue update result:', updateResult);
+    } else {
+      console.log('DEBUG: No customer totalDue update needed for paymentStatus:', paymentStatus);
     }
 
     // Populate bill details

@@ -23,11 +23,6 @@ const customerSchema = new mongoose.Schema({
     state: String,
     pincode: String
   },
-  creditLimit: {
-    type: Number,
-    default: 0,
-    min: 0
-  },
   totalDue: {
     type: Number,
     default: 0,
@@ -50,11 +45,6 @@ const customerSchema = new mongoose.Schema({
   }
 }, {
   timestamps: true
-});
-
-// Virtual for remaining credit
-customerSchema.virtual('remainingCredit').get(function() {
-  return Math.max(0, this.creditLimit - this.totalDue);
 });
 
 // Index for faster searches

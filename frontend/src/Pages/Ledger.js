@@ -278,9 +278,6 @@ const Ledger = () => {
                 <Typography variant="h6" color={selectedCustomer.totalDue > 0 ? 'error' : 'success'}>
                   Balance: Rs. {selectedCustomer.totalDue.toFixed(2)}
                 </Typography>
-                <Typography variant="body2" color="textSecondary">
-                  Credit Limit: Rs. {selectedCustomer.creditLimit.toFixed(2)}
-                </Typography>
               </Box>
             </Box>
           </Paper>

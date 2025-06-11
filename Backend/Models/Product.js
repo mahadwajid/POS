@@ -6,12 +6,6 @@ const productSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
-  sku: {
-    type: String,
-    required: true,
-    unique: true,
-    trim: true
-  },
   description: {
     type: String,
     trim: true
@@ -68,11 +62,6 @@ const productSchema = new mongoose.Schema({
     default: 0,
     min: 0
   },
-  unitType: {
-    type: String,
-    enum: ['piece', 'kg', 'g', 'l', 'ml', 'box', 'pack'],
-    default: 'piece'
-  },
   status: {
     type: String,
     enum: ['In Stock', 'Low Stock', 'Out of Stock', 'Discontinued'],
@@ -108,7 +97,6 @@ const productSchema = new mongoose.Schema({
 
 // Add indexes
 productSchema.index({ name: 1 });
-productSchema.index({ sku: 1 });
 productSchema.index({ category: 1 });
 productSchema.index({ brand: 1 });
 productSchema.index({ status: 1 });

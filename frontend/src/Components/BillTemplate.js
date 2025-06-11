@@ -11,7 +11,7 @@ const DefaultLogo = () => (
 
 function formatCurrency(amount) {
   if (typeof amount !== 'number') return 'N/A';
-  return `₹${amount.toFixed(2)}`;
+  return `Rs. ${amount.toFixed(2)}`;
 }
 
 const BillTemplate = ({ bill, companyInfo }) => {
@@ -60,7 +60,7 @@ const BillTemplate = ({ bill, companyInfo }) => {
   }
 
   return (
-    <Box p={4} maxWidth={600} margin="0 auto" bgcolor="#fff" borderRadius={2} boxShadow={2}>
+    <Box p={4} maxWidth={600} margin="0 auto" bgcolor="#fff">
       <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
         <Box>
           {logo ? (

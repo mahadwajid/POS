@@ -195,7 +195,7 @@ const Billing = () => {
         paidAmount,
         dueAmount: balanceAmount,
         paymentMethod: paymentMethod.charAt(0).toUpperCase() + paymentMethod.slice(1),
-        status: balanceAmount > 0 ? 'Partially Paid' : 'Paid',
+        status: balanceAmount > 0 ? 'pending' : 'paid',
         notes
       };
 

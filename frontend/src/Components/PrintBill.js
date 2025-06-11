@@ -1,75 +1,52 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { Box, Typography, Button } from '@mui/material';
 import BillTemplate from './BillTemplate';
 import { useNavigate } from 'react-router-dom';
 import '../styles/print.css';
+import { PDFDownloadLink } from '@react-pdf/renderer';
+import InvoicePDF from './InvoicePDF';
 
 const PrintBill = () => {
   const [printData, setPrintData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
+  const printRef = useRef(null);
 
   useEffect(() => {
     const loadPrintData = () => {
       try {
         const storedData = localStorage.getItem('printBillData');
-        console.log('Loaded printBillData from localStorage:', storedData);
-        
         if (!storedData) {
           setError('No bill data found. Please try printing again from the billing page.');
           setLoading(false);
           return;
         }
-  
         const parsedData = JSON.parse(storedData);
-        console.log('Parsed print data:', parsedData);
-        
-        // Validate required data
         if (!parsedData || !parsedData.billData || !parsedData.companyInfo) {
           setError('Invalid bill data format. Please try printing again.');
           setLoading(false);
           return;
         }
-  
-        // Validate minimum required bill data
         if (!parsedData.billData.customer || !parsedData.billData.items) {
           setError('Bill data is incomplete. Please try printing again.');
           setLoading(false);
           return;
         }
-  
         setPrintData(parsedData);
         setLoading(false);
       } catch (err) {
-        console.error('Error loading bill data:', err);
         setError('Error loading bill data. Please try printing again.');
         setLoading(false);
       }
     };
-  
     loadPrintData();
-  
-    // Clean up localStorage when component unmounts
     return () => {
       localStorage.removeItem('printBillData');
     };
   }, []);
-
-  const handlePrint = () => {
-    if (printData) {
-      // Use requestAnimationFrame to ensure the DOM is painted before printing
-      requestAnimationFrame(() => {
-        window.print();
-      });
-      window.onafterprint = () => {
-        localStorage.removeItem('printBillData');
-        navigate('/billing');
-      };
-    }
-  };
 
   const handleBack = () => {
     localStorage.removeItem('printBillData');
@@ -115,15 +92,27 @@ const PrintBill = () => {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Box className="bill-template">
+      <Box className="bill-template" ref={printRef}>
         <BillTemplate
           bill={printData?.billData}
           companyInfo={printData?.companyInfo}
         />
         <Box display="flex" justifyContent="center" mt={2} className="print-button">
-          <Button variant="contained" onClick={handlePrint}>
-            Print Bill
-          </Button>
+          {printData && (
+            <PDFDownloadLink
+              document={<InvoicePDF bill={printData.billData} companyInfo={printData.companyInfo} />}
+              fileName={`Invoice-${printData.billData.billNumber}.pdf`}
+              style={{ textDecoration: 'none' }}
+            >
+              {({ loading }) =>
+                loading ? (
+                  <Button variant="contained" disabled>Generating PDF...</Button>
+                ) : (
+                  <Button variant="contained">Download PDF</Button>
+                )
+              }
+            </PDFDownloadLink>
+          )}
           <Button variant="outlined" onClick={handleBack} sx={{ ml: 2 }}>
             Back to Billing
           </Button>

@@ -51,11 +51,10 @@ const Products = () => {
     name: '',
     description: '',
     category: '',
+    otherCategory: '',
     price: '',
     costPrice: '',
     quantity: '',
-    unitType: 'piece',
-    sku: '',
     brand: '',
     model: '',
     warranty: '',
@@ -66,7 +65,11 @@ const Products = () => {
     }
   });
 
-  const categories = ['Lighting', 'Switches', 'Cables', 'Tools', 'Accessories', 'Other'];
+  const mainCategories = ['Switches', 'Circuit Breakers', 'Lightening', 'Boxes'];
+  const customCategories = Array.from(
+    new Set(products.map(p => p.category).filter(cat => !mainCategories.includes(cat)))
+  );
+  const categories = [...mainCategories, ...customCategories, 'Other'];
   const unitTypes = ['piece', 'meter', 'box', 'set', 'kg'];
 
   useEffect(() => {
@@ -100,11 +103,10 @@ const Products = () => {
         name: '',
         description: '',
         category: '',
+        otherCategory: '',
         price: '',
         costPrice: '',
         quantity: '',
-        unitType: 'piece',
-        sku: '',
         brand: '',
         model: '',
         warranty: '',
@@ -126,12 +128,17 @@ const Products = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    let submitData = { ...formData };
+    if (formData.category === 'Other') {
+      submitData.category = formData.otherCategory;
+    }
+    delete submitData.otherCategory;
     try {
       if (editMode) {
-        await api.put(`/products/${selectedProduct._id}`, formData);
+        await api.put(`/products/${selectedProduct._id}`, submitData);
         showSnackbar('Product updated successfully');
       } else {
-        await api.post('/products', formData);
+        await api.post('/products', submitData);
         showSnackbar('Product added successfully');
       }
       handleClose();
@@ -189,6 +196,12 @@ const Products = () => {
     if (product.quantity <= product.lowStockAlert) return 'Low Stock';
     return 'In Stock';
   };
+
+  const filteredProducts = category === 'Other'
+    ? products.filter(p => !mainCategories.includes(p.category) && !customCategories.includes(p.category))
+    : category
+      ? products.filter(p => p.category === category)
+      : products;
 
   return (
     <Container maxWidth="xl">
@@ -268,13 +281,12 @@ const Products = () => {
                 <TableCell>Price</TableCell>
                 <TableCell>Quantity</TableCell>
                 <TableCell>Low Stock Alert</TableCell>
-                <TableCell>Unit</TableCell>
                 <TableCell>Status</TableCell>
                 <TableCell>Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {products.map((product) => (
+              {filteredProducts.map((product) => (
                 <TableRow 
                   key={product._id}
                   sx={{
@@ -286,7 +298,6 @@ const Products = () => {
                   <TableCell>Rs. {product.price}</TableCell>
                   <TableCell>{product.quantity}</TableCell>
                   <TableCell>{product.lowStockAlert}</TableCell>
-                  <TableCell>{product.unitType}</TableCell>
                   <TableCell>
                     <Chip
                       label={getStatusLabel(product)}
@@ -324,21 +335,12 @@ const Products = () => {
                 />
               </Grid>
               <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="SKU"
-                  value={formData.sku}
-                  onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-                  required
-                />
-              </Grid>
-              <Grid item xs={12} md={6}>
                 <FormControl fullWidth required>
                   <InputLabel>Category</InputLabel>
                   <Select
                     value={formData.category}
                     label="Category"
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                    onChange={(e) => setFormData({ ...formData, category: e.target.value, otherCategory: '' })}
                   >
                     {categories.map((cat) => (
                       <MenuItem key={cat} value={cat}>{cat}</MenuItem>
@@ -346,20 +348,17 @@ const Products = () => {
                   </Select>
                 </FormControl>
               </Grid>
-              <Grid item xs={12} md={6}>
-                <FormControl fullWidth required>
-                  <InputLabel>Unit Type</InputLabel>
-                  <Select
-                    value={formData.unitType}
-                    label="Unit Type"
-                    onChange={(e) => setFormData({ ...formData, unitType: e.target.value })}
-                  >
-                    {unitTypes.map((unit) => (
-                      <MenuItem key={unit} value={unit}>{unit}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
+              {formData.category === 'Other' && (
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="Name of other category"
+                    value={formData.otherCategory}
+                    onChange={(e) => setFormData({ ...formData, otherCategory: e.target.value })}
+                    required
+                  />
+                </Grid>
+              )}
               <Grid item xs={12} md={6}>
                 <TextField
                   fullWidth

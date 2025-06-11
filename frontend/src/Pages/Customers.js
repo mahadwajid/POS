@@ -23,7 +23,8 @@ import {
   Chip,
   InputAdornment,
   Tooltip,
-  MenuItem
+  MenuItem,
+  Snackbar
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -37,18 +38,18 @@ import {
 import { useFormik } from 'formik';
 import * as yup from 'yup';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../Services/api';
 
 const validationSchema = yup.object({
   name: yup.string().required('Name is required'),
   phone: yup.string().required('Phone number is required'),
   email: yup.string().email('Invalid email'),
-  creditLimit: yup.number().min(0, 'Credit limit must be positive')
 });
 
 const Customers = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -65,6 +66,7 @@ const Customers = () => {
     paymentMethod: 'cash',
     notes: ''
   });
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
   const formik = useFormik({
     initialValues: {
@@ -77,7 +79,6 @@ const Customers = () => {
         state: '',
         pincode: ''
       },
-      creditLimit: '',
       notes: ''
     },
     validationSchema,
@@ -102,6 +103,7 @@ const Customers = () => {
       const response = await api.get('/customers', {
         params: { search }
       });
+      console.log('Fetched customers:', response.data);
       setCustomers(response.data);
       setError(null);
     } catch (err) {
@@ -114,6 +116,16 @@ const Customers = () => {
   useEffect(() => {
     fetchCustomers();
   }, [search]);
+
+  useEffect(() => {
+    if (location.state && location.state.showBillSuccess) {
+      setSnackbar({ open: true, message: 'Bill created successfully!', severity: 'success' });
+      setTimeout(() => {
+        fetchCustomers();
+      }, 400);
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location, navigate]);
 
   const handleOpen = (customer = null) => {
     if (customer) {
@@ -187,7 +199,7 @@ const Customers = () => {
   };
 
   const handleCreateBill = (customerId) => {
-    navigate(`/billing/new?customerId=${customerId}`);
+    navigate(`/billing/new?customerId=${customerId}`, { state: { showBillSuccess: true } });
   };
 
   const handleChangePage = (event, newPage) => {
@@ -255,7 +267,6 @@ const Customers = () => {
               <TableCell>Phone</TableCell>
               <TableCell>Email</TableCell>
               <TableCell>Total Due</TableCell>
-              <TableCell>Credit Limit</TableCell>
               <TableCell>Status</TableCell>
               <TableCell>Actions</TableCell>
             </TableRow>
@@ -273,10 +284,9 @@ const Customers = () => {
                       color={customer.totalDue > 0 ? 'error' : 'success'}
                       fontWeight="bold"
                     >
-                      Rs. {customer.totalDue.toFixed(2)}
+                      Rs. {(customer.totalDue ?? 0).toFixed(2)}
                     </Typography>
                   </TableCell>
-                  <TableCell>Rs. {customer.creditLimit.toFixed(2)}</TableCell>
                   <TableCell>
                     <Chip
                       label={customer.isActive ? 'Active' : 'Inactive'}
@@ -386,18 +396,6 @@ const Customers = () => {
                   onChange={formik.handleChange}
                   error={formik.touched.email && Boolean(formik.errors.email)}
                   helperText={formik.touched.email && formik.errors.email}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  name="creditLimit"
-                  label="Credit Limit"
-                  type="number"
-                  value={formik.values.creditLimit}
-                  onChange={formik.handleChange}
-                  error={formik.touched.creditLimit && Boolean(formik.errors.creditLimit)}
-                  helperText={formik.touched.creditLimit && formik.errors.creditLimit}
                 />
               </Grid>
               <Grid item xs={12}>
@@ -518,6 +516,21 @@ const Customers = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Snackbar for success/error messages */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+      >
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

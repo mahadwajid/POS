@@ -54,7 +54,6 @@ export const createCustomer = async (req, res) => {
       phone,
       email,
       address,
-      creditLimit,
       notes
     } = req.body;
 
@@ -69,7 +68,6 @@ export const createCustomer = async (req, res) => {
       phone,
       email,
       address,
-      creditLimit,
       notes
     });
 
@@ -89,7 +87,6 @@ export const updateCustomer = async (req, res) => {
       phone,
       email,
       address,
-      creditLimit,
       notes
     } = req.body;
 
@@ -111,7 +108,6 @@ export const updateCustomer = async (req, res) => {
       phone,
       email,
       address,
-      creditLimit,
       notes
     });
 
