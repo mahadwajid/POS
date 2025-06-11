@@ -19,12 +19,17 @@ const app = express();
 
 // CORS configuration
 app.use(cors({
-  origin: 'http://localhost:3000',
+  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
   credentials: true
 }));
 
 // Middleware
 app.use(express.json());
+
+// Health check route
+app.get('/', (req, res) => {
+  res.json({ message: 'POS API is running' });
+});
 
 // Routes
 app.use('/api/auth', authRoutes);
