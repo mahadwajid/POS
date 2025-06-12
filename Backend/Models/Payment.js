@@ -14,7 +14,7 @@ const paymentSchema = new mongoose.Schema({
   paymentMethod: {
     type: String,
     required: true,
-    enum: ['cash', 'card', 'upi', 'bank']
+    enum: ['Cash', 'Card', 'UPI', 'Bank Transfer', 'Credit']
   },
   paymentNumber: {
     type: String,
@@ -36,37 +36,7 @@ const paymentSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Generate payment number before validation
-paymentSchema.pre('validate', async function (next) {
-  try {
-    if (this.isNew && !this.paymentNumber) {
-      const date = new Date();
-      const year = date.getFullYear().toString().slice(-2);
-      const month = (date.getMonth() + 1).toString().padStart(2, '0');
-      const day = date.getDate().toString().padStart(2, '0');
-      
-      // Get the latest payment number for today
-      const latestPayment = await this.constructor.findOne(
-        { paymentNumber: new RegExp(`^PAY${year}${month}${day}`) },
-        { paymentNumber: 1 },
-        { sort: { paymentNumber: -1 } }
-      );
-
-      let sequence = 1;
-      if (latestPayment) {
-        const lastSequence = parseInt(latestPayment.paymentNumber.slice(-4));
-        sequence = lastSequence + 1;
-      }
-
-      this.paymentNumber = `PAY${year}${month}${day}${sequence.toString().padStart(4, '0')}`;
-    }
-    next();
-  } catch (error) {
-    next(error);
-  }
-});
-
-// ✅ Prevent OverwriteModelError
+// Remove the pre-save hook since we're generating the number in the controller
 const Payment = mongoose.models.Payment || mongoose.model('Payment', paymentSchema);
 
 export default Payment;

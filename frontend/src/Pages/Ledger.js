@@ -63,7 +63,7 @@ const Ledger = () => {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('cash');
+  const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [paymentNotes, setPaymentNotes] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [dateRange, setDateRange] = useState({
@@ -138,7 +138,7 @@ const Ledger = () => {
       });
       setPaymentDialogOpen(false);
       setPaymentAmount('');
-      setPaymentMethod('cash');
+      setPaymentMethod('Cash');
       setPaymentNotes('');
       fetchTransactions(selectedCustomer._id);
     } catch (err) {
@@ -517,13 +517,11 @@ const Ledger = () => {
                 label="Payment Method"
                 sx={{ borderRadius: 2 }}
               >
-                <MenuItem value="cash">Cash</MenuItem>
-                <MenuItem value="card">Card</MenuItem>
-                <MenuItem value="bank_transfer">Bank Transfer</MenuItem>
-                <MenuItem value="upi">UPI</MenuItem>
-                <MenuItem value="wallet">Wallet</MenuItem>
-                <MenuItem value="cheque">Cheque</MenuItem>
-                <MenuItem value="credit">Credit</MenuItem>
+                <MenuItem value="Cash">Cash</MenuItem>
+                <MenuItem value="Card">Card</MenuItem>
+                <MenuItem value="Bank Transfer">Bank Transfer</MenuItem>
+                <MenuItem value="UPI">UPI</MenuItem>
+                <MenuItem value="Credit">Credit</MenuItem>
               </Select>
             </FormControl>
             <TextField

@@ -196,8 +196,8 @@ export const getCustomerLedger = async (req, res) => {
         date: bill.createdAt,
         reference: bill.billNumber,
         description: 'Purchase',
-        amount: bill.totalAmount,
-        balance: bill.remainingDue
+        amount: bill.total,
+        balance: bill.dueAmount
       })),
       ...payments.map(payment => ({
         type: 'payment',
@@ -236,17 +236,41 @@ export const recordPayment = async (req, res) => {
       });
     }
 
+    // Generate payment reference
+    const date = new Date();
+    const year = date.getFullYear().toString().slice(-2);
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    
+    // Get the latest payment number for today
+    const today = new Date(date.setHours(0, 0, 0, 0));
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const lastPayment = await Payment.findOne({
+      createdAt: { $gte: today, $lt: tomorrow }
+    }).sort({ paymentNumber: -1 });
+
+    // Generate sequential number for today
+    const sequence = lastPayment ? 
+      parseInt(lastPayment.paymentNumber.slice(-4)) + 1 : 
+      1;
+
+    // Format payment number as PAYYYMMDDXXXX
+    const paymentNumber = `PAY${year}${month}${day}${sequence.toString().padStart(4, '0')}`;
+
     // Create new payment instance
     const payment = new Payment({
       customer: customer._id,
       amount,
       paymentMethod,
+      paymentNumber,
       notes,
       balanceAfter: customer.totalDue - amount,
       recordedBy
     });
 
-    // Save payment and wait for pre-save hook to complete
+    // Save payment
     await payment.save();
 
     // Update customer's financial data
@@ -265,8 +289,7 @@ export const recordPayment = async (req, res) => {
       const paymentAmount = Math.min(remainingAmount, bill.dueAmount);
       bill.paidAmount += paymentAmount;
       bill.dueAmount -= paymentAmount;
-      bill.status = bill.dueAmount > 0 ? 'pending' : 'paid';
-      bill.paymentStatus = bill.dueAmount > 0 ? 'partial' : 'paid';
+      bill.status = bill.dueAmount > 0 ? 'Partially Paid' : 'Paid';
       
       await bill.save();
       remainingAmount -= paymentAmount;

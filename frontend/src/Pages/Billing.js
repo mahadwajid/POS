@@ -28,11 +28,9 @@ import {
   MenuItem,
   useTheme,
   useMediaQuery,
-  Stack,
   Card,
   CardContent,
-  Fade,
-  Tooltip
+  Stack
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -40,11 +38,9 @@ import {
   Print as PrintIcon,
   Save as SaveIcon,
   Delete as DeleteIcon,
-  Receipt as ReceiptIcon,
   Person as PersonIcon,
   ShoppingCart as ShoppingCartIcon,
-  Payment as PaymentIcon,
-  Description as DescriptionIcon
+  Receipt as ReceiptIcon
 } from '@mui/icons-material';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -55,6 +51,8 @@ const Billing = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [customers, setCustomers] = useState([]);
@@ -62,8 +60,8 @@ const Billing = () => {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [items, setItems] = useState([]);
   const [discount, setDiscount] = useState(0);
-  const [tax, setTax] = useState(0);
-  const [paymentMethod, setPaymentMethod] = useState('cash');
+  const [taxRate, setTaxRate] = useState(18); // Default GST rate
+  const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [paidAmount, setPaidAmount] = useState(0);
   const [notes, setNotes] = useState('');
   const [billData, setBillData] = useState({
@@ -79,10 +77,6 @@ const Billing = () => {
     dueAmount: 0,
     notes: ''
   });
-
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const isTablet = useMediaQuery(theme.breakpoints.down('md'));
 
   useEffect(() => {
     const fetchData = async () => {
@@ -125,14 +119,14 @@ const Billing = () => {
         total: item.total
       })),
       subtotal: subTotal,
-      tax: tax,
+      tax: taxAmount,
       discount: discount,
       total: grandTotal,
       paidAmount: paidAmount,
       dueAmount: balanceAmount,
       notes: notes
     }));
-  }, [selectedCustomer, items, discount, tax, paidAmount, notes]);
+  }, [selectedCustomer, items, discount, taxRate, paidAmount, notes]);
 
   const handleAddItem = (product) => {
     if (product.quantity <= 0) {
@@ -183,16 +177,12 @@ const Billing = () => {
     }).filter(item => item.quantity > 0));
   };
 
-  const handleTaxChange = (e) => {
-    const value = parseFloat(e.target.value) || 0;
-    setTax(value);
-  };
-
   const calculateTotals = () => {
     const subTotal = items.reduce((sum, item) => sum + item.total, 0);
     const discountAmount = (subTotal * discount) / 100;
-    const taxAmount = (subTotal * tax) / 100;
-    const grandTotal = subTotal - discountAmount + taxAmount;
+    const taxableAmount = subTotal - discountAmount;
+    const taxAmount = (taxableAmount * taxRate) / 100;
+    const grandTotal = taxableAmount + taxAmount;
     const balanceAmount = grandTotal - paidAmount;
 
     return {
@@ -204,12 +194,7 @@ const Billing = () => {
     };
   };
 
-  const handleSaveAndPrint = async (e) => {
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-
+  const handleSave = async () => {
     try {
       if (!selectedCustomer) {
         setError('Please select a customer');
@@ -221,113 +206,108 @@ const Billing = () => {
       }
 
       const { grandTotal, balanceAmount } = calculateTotals();
-      
-      // Generate a better formatted bill number
-      const date = new Date();
-      const year = date.getFullYear().toString().slice(-2);
-      const month = (date.getMonth() + 1).toString().padStart(2, '0');
-      const day = date.getDate().toString().padStart(2, '0');
-      const randomNum = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-      const billNumber = `BILL-${year}${month}${day}-${randomNum}`;
-
       const billData = {
         customer: selectedCustomer._id,
         items: items.map(item => ({
           product: item.productId,
-          name: item.name,
           quantity: item.quantity,
           price: item.price,
           total: item.total
         })),
-        billNumber: billNumber,
         subtotal: calculateTotals().subTotal,
-        discount: discount || 0,
-        tax: tax || 0,
-        taxAmount: calculateTotals().taxAmount || 0,
+        discount,
+        tax: taxRate,
         total: grandTotal,
-        paidAmount: paidAmount || 0,
+        paidAmount,
         dueAmount: balanceAmount,
-        paymentMethod: paymentMethod.toLowerCase(),
-        status: 'paid',
-        notes: notes || ''
+        paymentMethod: paymentMethod,
+        status: balanceAmount > 0 ? 'Partially Paid' : 'Paid',
+        notes
       };
 
-      // First save the bill
       const response = await api.post('/bills', billData);
       
-      if (response.data) {
-        // Prepare print data
-        const printData = {
-          billData: {
-            ...billData,
-            billNumber: response.data.billNumber || billNumber,
-            date: response.data.date,
-            customer: {
-              _id: selectedCustomer._id,
-              name: selectedCustomer.name,
-              phone: selectedCustomer.phone || 'N/A',
-              address: selectedCustomer.address || 'N/A'
-            }
-          },
-          companyInfo: {
-            name: user.companyName || 'KPK Cables®',
-            address: user.companyAddress || 'Your Company Address',
-            phone: user.companyPhone || 'Your Company Phone',
-            email: user.companyEmail || 'Your Company Email',
-            gstin: user.companyGSTIN || 'Your GSTIN Number',
-            logo: user.companyLogo || '/logo.png'
-          }
-        };
+      // Prepare bill data for printing
+      const printBillData = {
+        billNumber: response.data.billNumber,
+        date: new Date().toISOString(),
+        customer: {
+          name: selectedCustomer.name,
+          phone: selectedCustomer.phone || 'N/A',
+          address: selectedCustomer.address || 'N/A'
+        },
+        items: items.map(item => ({
+          name: item.name,
+          quantity: item.quantity,
+          price: item.price,
+          total: item.price * item.quantity
+        })),
+        subtotal: calculateTotals().subTotal,
+        discount: discountAmount,
+        tax: taxAmount,
+        total: grandTotal,
+        paidAmount: paidAmount,
+        dueAmount: balanceAmount,
+        paymentMethod: paymentMethod,
+        notes: notes
+      };
 
-        // Save print data to localStorage
-        localStorage.setItem('printBillData', JSON.stringify(printData));
-        
-        // Navigate to print page
-        navigate('/print-bill');
-      }
+      // Prepare company info
+      const companyInfo = {
+        name: user.companyName || 'KPK Cables®',
+        address: user.companyAddress || 'Your Company Address',
+        phone: user.companyPhone || 'Your Company Phone',
+        email: user.companyEmail || 'Your Company Email',
+        gstin: user.companyGSTIN || 'Your GSTIN Number',
+        logo: user.companyLogo || '/logo.png'
+      };
+
+      // Store data in localStorage
+      localStorage.setItem('printBillData', JSON.stringify({ 
+        billData: printBillData, 
+        companyInfo 
+      }));
+
+      // Navigate to print page
+      navigate(`/print-bill?billId=${response.data._id}`);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to save and print bill');
+      setError(err.response?.data?.message || 'Failed to save bill');
     }
   };
 
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="80vh">
-        <CircularProgress />
+        <CircularProgress size={60} thickness={4} />
       </Box>
     );
   }
 
   const { subTotal, discountAmount, taxAmount, grandTotal, balanceAmount } = calculateTotals();
 
-
   return (
-    <Box 
-      component="form"
-      onSubmit={handleSaveAndPrint}
-      sx={{ p: 3 }}
-    >
-      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
+    <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: '1400px', margin: '0 auto' }}>
+      <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'stretch', sm: 'center' }} spacing={2} mb={3}>
         <Typography variant="h4" sx={{ 
           fontWeight: 'bold',
-          background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-          backgroundClip: 'text',
-          WebkitBackgroundClip: 'text',
-          color: 'transparent'
+          color: theme.palette.primary.main,
+          fontSize: { xs: '1.5rem', md: '2rem' }
         }}>
           Create New Bill
         </Typography>
         <Button
           variant="contained"
           startIcon={<SaveIcon />}
-          onClick={handleSaveAndPrint}
+          onClick={handleSave}
           sx={{
             borderRadius: 2,
             textTransform: 'none',
-            px: 3,
-            background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+            px: 4,
+            py: 1.5,
+            fontSize: '1.1rem',
+            background: theme.palette.primary.main,
             '&:hover': {
-              background: `linear-gradient(45deg, ${theme.palette.primary.dark}, ${theme.palette.secondary.dark})`,
+              background: theme.palette.primary.dark,
             }
           }}
         >
@@ -336,179 +316,128 @@ const Billing = () => {
       </Stack>
 
       {error && (
-        <Alert 
-          severity="error" 
-          sx={{ 
-            mb: 2,
-            borderRadius: 2,
-            '& .MuiAlert-icon': {
-              color: theme.palette.error.main
-            }
-          }}
-        >
+        <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>
           {error}
         </Alert>
       )}
 
       <Grid container spacing={3}>
         <Grid item xs={12} md={8}>
-          <Paper 
-            elevation={0}
-            sx={{ 
-              p: 3, 
-              mb: 3,
-              borderRadius: 2,
-              background: `linear-gradient(45deg, ${theme.palette.background.paper} 0%, ${theme.palette.background.default} 100%)`,
-              border: `1px solid ${theme.palette.divider}`
-            }}
-          >
-            <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
-              <PersonIcon color="primary" />
-              <Typography variant="h6">Customer Information</Typography>
-            </Stack>
-            <Autocomplete
-              options={customers}
-              getOptionLabel={(option) => `${option.name} (${option.phone})`}
-              value={selectedCustomer}
-              onChange={(event, newValue) => setSelectedCustomer(newValue)}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="Select Customer"
-                  required
-                  fullWidth
-                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-                />
-              )}
-            />
-          </Paper>
+          <Card elevation={2} sx={{ mb: 2, borderRadius: 2 }}>
+            <CardContent>
+              <Stack direction="row" alignItems="center" spacing={1} mb={2}>
+                <PersonIcon color="primary" />
+                <Typography variant="h6">Customer Details</Typography>
+              </Stack>
+              <Autocomplete
+                options={customers}
+                getOptionLabel={(option) => `${option.name} (${option.phone})`}
+                value={selectedCustomer}
+                onChange={(event, newValue) => setSelectedCustomer(newValue)}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Select Customer"
+                    required
+                    fullWidth
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                  />
+                )}
+              />
+            </CardContent>
+          </Card>
 
-          <Paper 
-            elevation={0}
-            sx={{ 
-              p: 3, 
-              mb: 3,
-              borderRadius: 2,
-              background: `linear-gradient(45deg, ${theme.palette.background.paper} 0%, ${theme.palette.background.default} 100%)`,
-              border: `1px solid ${theme.palette.divider}`
-            }}
-          >
-            <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
-              <ShoppingCartIcon color="primary" />
-              <Typography variant="h6">Add Products</Typography>
-            </Stack>
-            <Autocomplete
-              options={products.filter(p => p.isActive)}
-              getOptionLabel={(option) => `${option.name} (Rs. ${option.price})`}
-              onChange={(event, newValue) => newValue && handleAddItem(newValue)}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="Add Product"
-                  fullWidth
-                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-                />
-              )}
-            />
-          </Paper>
+          <Card elevation={2} sx={{ mb: 2, borderRadius: 2 }}>
+            <CardContent>
+              <Stack direction="row" alignItems="center" spacing={1} mb={2}>
+                <ShoppingCartIcon color="primary" />
+                <Typography variant="h6">Add Products</Typography>
+              </Stack>
+              <Autocomplete
+                options={products.filter(p => p.isActive)}
+                getOptionLabel={(option) => `${option.name} (Rs. ${option.price})`}
+                onChange={(event, newValue) => newValue && handleAddItem(newValue)}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Add Product"
+                    fullWidth
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                  />
+                )}
+              />
+            </CardContent>
+          </Card>
 
-          <TableContainer 
-            component={Paper}
-            elevation={0}
-            sx={{ 
-              borderRadius: 2,
-              border: `1px solid ${theme.palette.divider}`,
-              overflow: 'hidden'
-            }}
-          >
-            <Table>
-              <TableHead>
-                <TableRow sx={{ backgroundColor: theme.palette.background.default }}>
-                  <TableCell sx={{ fontWeight: 'bold' }}>Product</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 'bold' }}>Price</TableCell>
-                  <TableCell align="center" sx={{ fontWeight: 'bold' }}>Quantity</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 'bold' }}>Total</TableCell>
-                  <TableCell align="center" sx={{ fontWeight: 'bold' }}>Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {items.map((item) => (
-                  <TableRow 
-                    key={item.productId}
-                    sx={{
-                      '&:hover': {
-                        backgroundColor: theme.palette.action.hover
-                      }
-                    }}
-                  >
-                    <TableCell>{item.name}</TableCell>
-                    <TableCell align="right">Rs. {item.price.toFixed(2)}</TableCell>
-                    <TableCell align="center">
-                      <Box display="flex" alignItems="center" justifyContent="center">
-                        <IconButton
-                          size="small"
-                          onClick={() => handleQuantityChange(item.productId, -1)}
-                          sx={{ 
-                            color: theme.palette.error.main,
-                            '&:hover': { backgroundColor: `${theme.palette.error.main}15` }
-                          }}
-                        >
-                          <RemoveIcon fontSize="small" />
-                        </IconButton>
-                        <Typography sx={{ mx: 1, minWidth: '30px', textAlign: 'center' }}>
-                          {item.quantity}
-                        </Typography>
-                        <IconButton
-                          size="small"
-                          onClick={() => handleQuantityChange(item.productId, 1)}
-                          sx={{ 
-                            color: theme.palette.success.main,
-                            '&:hover': { backgroundColor: `${theme.palette.success.main}15` }
-                          }}
-                        >
-                          <AddIcon fontSize="small" />
-                        </IconButton>
-                      </Box>
-                    </TableCell>
-                    <TableCell align="right">Rs. {item.total.toFixed(2)}</TableCell>
-                    <TableCell align="center">
-                      <Tooltip title="Remove Item" TransitionComponent={Fade}>
-                        <IconButton
-                          size="small"
-                          onClick={() => handleQuantityChange(item.productId, -item.quantity)}
-                          sx={{ 
-                            color: theme.palette.error.main,
-                            '&:hover': { backgroundColor: `${theme.palette.error.main}15` }
-                          }}
-                        >
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+          <Card elevation={2} sx={{ borderRadius: 2 }}>
+            <CardContent>
+              <Stack direction="row" alignItems="center" spacing={1} mb={2}>
+                <ReceiptIcon color="primary" />
+                <Typography variant="h6">Bill Items</Typography>
+              </Stack>
+              <TableContainer>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Product</TableCell>
+                      <TableCell align="right">Price</TableCell>
+                      <TableCell align="center">Quantity</TableCell>
+                      <TableCell align="right">Total</TableCell>
+                      <TableCell align="center">Actions</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {items.map((item) => (
+                      <TableRow key={item.productId} hover>
+                        <TableCell>{item.name}</TableCell>
+                        <TableCell align="right">Rs. {item.price.toFixed(2)}</TableCell>
+                        <TableCell align="center">
+                          <Box display="flex" alignItems="center" justifyContent="center">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleQuantityChange(item.productId, -1)}
+                              sx={{ color: theme.palette.primary.main }}
+                            >
+                              <RemoveIcon />
+                            </IconButton>
+                            <Typography sx={{ mx: 1, minWidth: '30px', textAlign: 'center' }}>
+                              {item.quantity}
+                            </Typography>
+                            <IconButton
+                              size="small"
+                              onClick={() => handleQuantityChange(item.productId, 1)}
+                              sx={{ color: theme.palette.primary.main }}
+                            >
+                              <AddIcon />
+                            </IconButton>
+                          </Box>
+                        </TableCell>
+                        <TableCell align="right">Rs. {item.total.toFixed(2)}</TableCell>
+                        <TableCell align="center">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleQuantityChange(item.productId, -item.quantity)}
+                            sx={{ color: theme.palette.error.main }}
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </CardContent>
+          </Card>
         </Grid>
 
         <Grid item xs={12} md={4}>
-          <Paper 
-            elevation={0}
-            sx={{ 
-              p: 3,
-              borderRadius: 2,
-              background: `linear-gradient(45deg, ${theme.palette.background.paper} 0%, ${theme.palette.background.default} 100%)`,
-              border: `1px solid ${theme.palette.divider}`
-            }}
-          >
-            <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
-              <ReceiptIcon color="primary" />
-              <Typography variant="h6">Bill Summary</Typography>
-            </Stack>
-
-            <Grid container spacing={2}>
-              <Grid item xs={12}>
+          <Card elevation={2} sx={{ borderRadius: 2, position: { md: 'sticky' }, top: { md: 20 } }}>
+            <CardContent>
+              <Typography variant="h6" gutterBottom sx={{ color: theme.palette.primary.main }}>
+                Bill Summary
+              </Typography>
+              <Stack spacing={2}>
                 <TextField
                   fullWidth
                   label="Discount (%)"
@@ -520,40 +449,32 @@ const Billing = () => {
                   }}
                   sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
                 />
-              </Grid>
-              <Grid item xs={12}>
                 <TextField
                   fullWidth
                   label="Tax Rate (%)"
                   type="number"
-                  value={tax}
-                  onChange={handleTaxChange}
+                  value={taxRate}
+                  onChange={(e) => setTaxRate(Math.max(0, Number(e.target.value)))}
                   InputProps={{
                     endAdornment: <InputAdornment position="end">%</InputAdornment>,
                   }}
                   sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
                 />
-              </Grid>
-              <Grid item xs={12}>
                 <FormControl fullWidth>
                   <InputLabel>Payment Method</InputLabel>
                   <Select
                     value={paymentMethod}
                     onChange={(e) => setPaymentMethod(e.target.value)}
                     label="Payment Method"
-                    sx={{ borderRadius: 2 }}
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
                   >
-                    <MenuItem value="cash">Cash</MenuItem>
-                    <MenuItem value="card">Card</MenuItem>
-                    <MenuItem value="bank_transfer">Bank Transfer</MenuItem>
-                    <MenuItem value="upi">UPI</MenuItem>
-                    <MenuItem value="wallet">Wallet</MenuItem>
-                    <MenuItem value="cheque">Cheque</MenuItem>
-                    <MenuItem value="credit">Credit</MenuItem>
+                    <MenuItem value="Cash">Cash</MenuItem>
+                    <MenuItem value="Card">Card</MenuItem>
+                    <MenuItem value="Bank Transfer">Bank Transfer</MenuItem>
+                    <MenuItem value="UPI">UPI</MenuItem>
+                    <MenuItem value="Credit">Credit</MenuItem>
                   </Select>
                 </FormControl>
-              </Grid>
-              <Grid item xs={12}>
                 <TextField
                   fullWidth
                   label="Amount Paid"
@@ -565,8 +486,6 @@ const Billing = () => {
                   }}
                   sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
                 />
-              </Grid>
-              <Grid item xs={12}>
                 <TextField
                   fullWidth
                   label="Notes"
@@ -576,40 +495,32 @@ const Billing = () => {
                   onChange={(e) => setNotes(e.target.value)}
                   sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
                 />
-              </Grid>
-            </Grid>
+              </Stack>
 
-            <Divider sx={{ my: 3 }} />
+              <Divider sx={{ my: 3 }} />
 
-            <Box sx={{ 
-              p: 2, 
-              borderRadius: 2,
-              backgroundColor: theme.palette.background.default
-            }}>
               <Stack spacing={1.5}>
                 <Box display="flex" justifyContent="space-between">
-                  <Typography color="text.secondary">Subtotal:</Typography>
+                  <Typography>Subtotal:</Typography>
                   <Typography>Rs. {subTotal.toFixed(2)}</Typography>
                 </Box>
                 <Box display="flex" justifyContent="space-between">
-                  <Typography color="text.secondary">Discount:</Typography>
+                  <Typography>Discount:</Typography>
                   <Typography color="error">-Rs. {discountAmount.toFixed(2)}</Typography>
                 </Box>
                 <Box display="flex" justifyContent="space-between">
-                  <Typography color="text.secondary">Tax:</Typography>
+                  <Typography>Tax:</Typography>
                   <Typography>Rs. {taxAmount.toFixed(2)}</Typography>
                 </Box>
-                <Divider />
-                <Box display="flex" justifyContent="space-between">
+                <Box display="flex" justifyContent="space-between" sx={{ mt: 1 }}>
                   <Typography variant="h6">Grand Total:</Typography>
-                  <Typography variant="h6">Rs. {grandTotal.toFixed(2)}</Typography>
+                  <Typography variant="h6" color="primary">Rs. {grandTotal.toFixed(2)}</Typography>
                 </Box>
                 <Box display="flex" justifyContent="space-between">
-                  <Typography color="text.secondary">Amount Paid:</Typography>
+                  <Typography>Amount Paid:</Typography>
                   <Typography>Rs. {paidAmount.toFixed(2)}</Typography>
                 </Box>
-                <Divider />
-                <Box display="flex" justifyContent="space-between">
+                <Box display="flex" justifyContent="space-between" sx={{ mt: 1 }}>
                   <Typography variant="h6">Balance Due:</Typography>
                   <Typography
                     variant="h6"
@@ -619,8 +530,8 @@ const Billing = () => {
                   </Typography>
                 </Box>
               </Stack>
-            </Box>
-          </Paper>
+            </CardContent>
+          </Card>
         </Grid>
       </Grid>
     </Box>

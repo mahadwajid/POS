@@ -70,30 +70,24 @@ export const createBill = async (req, res) => {
       customer,
       items,
       subtotal,
-      discount,
       tax,
-      taxAmount,
       total,
       paidAmount,
-      dueAmount,
       paymentMethod,
       notes
     } = req.body;
-
-    // Validate required fields
-    if (!customer || !items || !items.length) {
-      return res.status(400).json({ message: 'Customer and items are required' });
-    }
 
     // Validate product quantities
     for (const item of items) {
       const product = await Product.findById(item.product);
       if (!product) {
-        return res.status(400).json({ message: `Product not found: ${item.product}` });
+        return res.status(400).json({ 
+          message: `Product not found: ${item.product}` 
+        });
       }
       if (product.quantity < item.quantity) {
         return res.status(400).json({ 
-          message: `Insufficient quantity for ${product.name}. Available: ${product.quantity}` 
+          message: `Not enough stock available for ${product.name}. Available: ${product.quantity}, Requested: ${item.quantity}` 
         });
       }
     }
@@ -103,54 +97,73 @@ export const createBill = async (req, res) => {
     const year = date.getFullYear().toString().slice(-2);
     const month = (date.getMonth() + 1).toString().padStart(2, '0');
     const day = date.getDate().toString().padStart(2, '0');
-    const randomNum = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-    const billNumber = `BILL-${year}${month}${day}-${randomNum}`;
 
-    // Create new bill
-    const bill = new Bill({
+    // Get the latest bill number for today
+    const today = new Date(date.setHours(0, 0, 0, 0));
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const lastBill = await Bill.findOne({
+      createdAt: { $gte: today, $lt: tomorrow }
+    }).sort({ billNumber: -1 });
+
+    // Generate sequential number for today
+    const sequence = lastBill ? 
+      parseInt(lastBill.billNumber.slice(-4)) + 1 : 
+      1;
+
+    // Format bill number as YYMMDDXXXX
+    const billNumber = `${year}${month}${day}${sequence.toString().padStart(4, '0')}`;
+
+    // Generate unique reference
+    const reference = `BILL${billNumber}`;
+
+    // Calculate due amount
+    const dueAmount = total - paidAmount;
+
+    // Create bill
+    const bill = await Bill.create({
       billNumber,
+      reference,
       customer,
       items,
       subtotal,
-      discount,
       tax,
-      taxAmount,
       total,
       paidAmount,
       dueAmount,
       paymentMethod,
       notes,
-      status: dueAmount > 0 ? 'pending' : 'paid'
+      status: dueAmount > 0 ? 'Partially Paid' : 'Paid',
+      createdBy: req.user._id
     });
-
-    // Save bill
-    await bill.save();
 
     // Update product quantities
     for (const item of items) {
-      await Product.findByIdAndUpdate(
-        item.product,
-        { $inc: { quantity: -item.quantity } }
-      );
+      await Product.findByIdAndUpdate(item.product, {
+        $inc: { quantity: -item.quantity }
+      });
     }
 
-    // Update customer dues if there's a due amount
+    // Update customer's total due
     if (dueAmount > 0) {
-      await Customer.findByIdAndUpdate(
-        customer,
-        { $inc: { dues: dueAmount } }
-      );
+      await Customer.findByIdAndUpdate(customer, {
+        $inc: { totalDue: dueAmount }
+      });
     }
 
-    // Populate bill details before sending response
+    // Populate bill details
     const populatedBill = await Bill.findById(bill._id)
-      .populate('customer', 'name phone address')
-      .populate('items.product', 'name price');
+      .populate('customer', 'name phone')
+      .populate('items.product', 'name sku price');
 
     res.status(201).json(populatedBill);
   } catch (error) {
-    console.error('Error creating bill:', error);
-    res.status(500).json({ message: 'Error creating bill', error: error.message });
+    console.error('Bill creation error:', error);
+    res.status(500).json({ 
+      message: 'Server error',
+      details: error.message 
+    });
   }
 };
 
@@ -174,7 +187,7 @@ export const updateBillPayment = async (req, res) => {
     bill.paidAmount = newPaidAmount;
     bill.dueAmount = newDueAmount;
     bill.paymentMethod = paymentMethod;
-    bill.status = newDueAmount > 0 ? 'partial' : 'paid';
+    bill.status = newDueAmount > 0 ? 'Partially Paid' : 'Paid';
     bill.payments.push({
       amount: paidAmount,
       method: paymentMethod,
@@ -311,41 +324,28 @@ export const getMonthlySummary = async (req, res) => {
 export const getCategorySummary = async (req, res) => {
   try {
     const bills = await Bill.find()
-      .populate({
-        path: 'items.product',
-        select: 'category name price'
-      });
+      .populate('items.product', 'category');
 
     const categorySummary = bills.reduce((summary, bill) => {
       bill.items.forEach(item => {
-        if (!item.product) return; // Skip if product is not found
-        
         const category = item.product.category || 'Uncategorized';
         if (!summary[category]) {
           summary[category] = {
             _id: category,
-            name: category,
             amount: 0,
             count: 0
           };
         }
-        summary[category].amount += (item.price || item.product.price) * item.quantity;
+        summary[category].amount += item.price * item.quantity;
         summary[category].count += item.quantity;
       });
       return summary;
     }, {});
 
-    // Convert to array and sort by amount
-    const summaryArray = Object.values(categorySummary)
-      .sort((a, b) => b.amount - a.amount);
-
-    res.json(summaryArray);
+    res.json(Object.values(categorySummary));
   } catch (error) {
     console.error('Category summary error:', error);
-    res.status(500).json({ 
-      message: 'Error getting category summary',
-      error: error.message 
-    });
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
@@ -398,4 +398,4 @@ export const deleteBill = async (req, res) => {
       details: error.message
     });
   }
-}; 
+};

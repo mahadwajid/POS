@@ -74,7 +74,7 @@ const Customers = () => {
   const { user } = useAuth();
   const [paymentData, setPaymentData] = useState({
     amount: '',
-    paymentMethod: 'cash',
+    paymentMethod: 'Cash',
     notes: ''
   });
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
@@ -173,7 +173,7 @@ const Customers = () => {
     setSelectedCustomer(customer);
     setPaymentData({
       amount: '',
-      paymentMethod: 'cash',
+      paymentMethod: 'Cash',
       notes: ''
     });
     setPaymentOpen(true);
@@ -184,7 +184,7 @@ const Customers = () => {
     setSelectedCustomer(null);
     setPaymentData({
       amount: '',
-      paymentMethod: 'cash',
+      paymentMethod: 'Cash',
       notes: ''
     });
   };
@@ -705,13 +705,11 @@ const Customers = () => {
                 onChange={(e) => setPaymentData(prev => ({ ...prev, paymentMethod: e.target.value }))}
                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
               >
-                <MenuItem value="cash">Cash</MenuItem>
-                <MenuItem value="card">Card</MenuItem>
-                <MenuItem value="bank_transfer">Bank Transfer</MenuItem>
-                <MenuItem value="upi">UPI</MenuItem>
-                <MenuItem value="wallet">Wallet</MenuItem>
-                <MenuItem value="cheque">Cheque</MenuItem>
-                <MenuItem value="credit">Credit</MenuItem>
+                <MenuItem value="Cash">Cash</MenuItem>
+                <MenuItem value="Card">Card</MenuItem>
+                <MenuItem value="Bank Transfer">Bank Transfer</MenuItem>
+                <MenuItem value="UPI">UPI</MenuItem>
+                <MenuItem value="Credit">Credit</MenuItem>
               </TextField>
               <TextField
                 fullWidth
